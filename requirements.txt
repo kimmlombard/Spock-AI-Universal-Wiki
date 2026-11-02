@@ -1,0 +1,10 @@
+# Aggregate of the tiers bootstrap installs. `pip install -r requirements.txt`
+# still gives you a complete runtime.
+#
+#   requirements-ui.txt    Phase A - PyQt6 menu only
+#   requirements-full.txt  Phase B - extractors, ingest, WebEngine (+ MCP)
+#   requirements-mcp.txt   MCP server, pulled in by the full tier
+#
+# Opt-in, never auto-installed: requirements-ocr.txt (needs the Tesseract
+# binary), requirements-dev.txt (pytest), requirements-docs.txt (system 3.12).
+-r requirements-full.txt

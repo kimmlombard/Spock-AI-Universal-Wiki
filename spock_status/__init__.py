@@ -1,0 +1,1 @@
+"""Spock Status CLI package."""

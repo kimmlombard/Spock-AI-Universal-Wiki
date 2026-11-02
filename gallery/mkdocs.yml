@@ -1,0 +1,35 @@
+site_name: Spock Screenshots
+site_description: Pre-scanned ShareX UI screenshots for Spock-Onboarding
+site_url: "https://kimmlombard.github.io/Spock-AI-Universal-Wiki/gallery/"
+repo_url: "https://github.com/kimmlombard/Spock-AI-Universal-Wiki"
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+
+nav:
+  - Docs home: https://kimmlombard.github.io/Spock-AI-Universal-Wiki/
+  - Gallery: index.md
+  - Captions: captions.md
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true

@@ -1,0 +1,7 @@
+# Opt-in docs toolchain - installed into .venv (used by
+# spock-onboarding-mkdocs.ps1 and the gen-files/hook pipeline).
+mkdocs>=1.6
+mkdocs-material>=9.5
+mkdocstrings[python]>=0.26
+mkdocs-gen-files>=0.5
+openai

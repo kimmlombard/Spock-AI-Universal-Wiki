@@ -1,0 +1,164 @@
+site_name: Spock-Onboarding
+site_description: Local AI Workstation Management Suite — orchestrate LLMs, RAG, and knowledge bases
+site_url: "https://kimmlombard.github.io/Spock-AI-Universal-Wiki/"
+
+repo_url: "https://github.com/kimmlombard/Spock-AI-Universal-Wiki"
+edit_uri: ""
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+    - toc.follow
+
+extra_javascript:
+  - js/mermaid.min.js
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - docs/gen_pages.py
+        - docs/gen_structure.py
+        - docs/gen_schema.py
+        - docs/gen_logic.py
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            members: true
+            show_submodules: true
+            show_source: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Screenshots: https://kimmlombard.github.io/Spock-AI-Universal-Wiki/gallery/
+  - Getting Started:
+      - Quick Start: getting-started/quick-start.md
+      - Prerequisites: getting-started/prerequisites.md
+      - Readiness Contract: getting-started/readiness-contract.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Detailed Specs: architecture/detailed-specs.md
+      - Database Schema: architecture/database-schema.md
+  - Features:
+      - Navigation Station: features/navigation-station.md
+      - Engineering Deck: features/engineering-deck.md
+      - Long Range Sensors: features/long-range-sensors.md
+      - Science Station: features/science-station.md
+      - RAG API Server: features/rag-api-server.md
+      - MCP Adapter: features/mcp-adapter.md
+      - MCP Tools Deep Dive: Spock MCP (Model Context Protocol) tools-spock-deep-dive.md
+      - LLM Client: features/llm-client.md
+      - Wiki Agent: features/wiki-agent.md
+      - Model Selector: features/model-selector.md
+      - Themes: features/themes.md
+  - CLI Tools:
+      - spock_bringup: cli/bringup.md
+      - spock_probe: cli/probe.md
+      - spock_status: cli/status.md
+      - spock_live_monitor: cli/live-monitor.md
+  - Configuration:
+      - Profiles: configuration/profiles.md
+      - Settings: configuration/settings.md
+      - Bootstrap: configuration/bootstrap.md
+  - Development:
+      - Project Layout: development/project-layout.md
+      - Testing: development/testing.md
+      - Copy Map: development/copy-map.md
+  - Code Structure:
+      - Overview: structure/index.md
+      - Module Map: structure/module-map.md
+      - Entry Points: structure/entrypoints.md
+      - Root Scripts: structure/root-scripts.md
+      - Database Schema: structure/database-schema.md
+      - Logic Deep Dives: structure/logic/index.md
+      - Orchestrator: structure/Orchestrator/index.md
+      - NavigationStation: structure/NavigationStation/index.md
+      - EngineeringDeck: structure/EngineeringDeck/index.md
+      - LongRangeSensors: structure/LongRangeSensors/index.md
+      - ScienceStation: structure/ScienceStation/index.md
+      - WarpCore: structure/WarpCore/index.md
+      - spock_onboarding: structure/spock_onboarding/index.md
+      - spock_bringup: structure/spock_bringup/index.md
+      - spock_bringup_menu: structure/spock_bringup_menu/index.md
+      - spock_shell: structure/spock_shell/index.md
+      - spock_rag_adapter: structure/spock_rag_adapter/index.md
+      - spock_mcp_adapter: structure/spock_mcp_adapter/index.md
+      - spock_wiki_adapter: structure/spock_wiki_adapter/index.md
+      - spock_live_monitor: structure/spock_live_monitor/index.md
+      - spock_status: structure/spock_status/index.md
+      - spock_probe: structure/spock_probe/index.md
+      - spock_progress_log: structure/spock_progress_log/index.md
+      - model_selector: structure/model_selector/index.md
+      - bootstrap_wizard: structure/bootstrap_wizard/index.md
+  - Reference:
+      - API Reference: reference/index.md
+      - Orchestrator: reference/Orchestrator/index.md
+      - NavigationStation: reference/NavigationStation/index.md
+      - EngineeringDeck: reference/EngineeringDeck/index.md
+      - LongRangeSensors: reference/LongRangeSensors/index.md
+      - ScienceStation: reference/ScienceStation/index.md
+      - WarpCore: reference/WarpCore/index.md
+      - spock_onboarding: reference/spock_onboarding/index.md
+      - spock_bringup: reference/spock_bringup/index.md
+      - spock_shell: reference/spock_shell/index.md
+      - spock_rag_adapter: reference/spock_rag_adapter/index.md
+      - spock_mcp_adapter: reference/spock_mcp_adapter/index.md
+      - Requirements: reference/requirements.md
+      - Plan Summary: reference/plan-summary.md

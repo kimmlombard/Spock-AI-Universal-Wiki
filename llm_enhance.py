@@ -1,0 +1,144 @@
+import os
+import re
+import time
+
+import openai
+
+# LM Studio / llama-server OpenAI-compatible API.
+BASE_URL = os.environ.get("SPOCK_LLM_BASE_URL", "http://localhost:8081/v1")
+SKIP_ENHANCE = os.environ.get("SPOCK_MKDOCS_SKIP_LLM_ENHANCE", "").lower() in ("1", "true", "yes")
+# 27b models and first-time model loading in LM Studio can take minutes.
+LLM_TIMEOUT = int(os.environ.get("SPOCK_LLM_TIMEOUT", "3000"))
+LLM_RETRIES = int(os.environ.get("SPOCK_LLM_RETRIES", "2"))
+
+client = openai.OpenAI(
+    base_url=BASE_URL,
+    api_key="llamaccp",  # any string works
+    timeout=LLM_TIMEOUT,
+)
+
+
+def _pick_model() -> str:
+    """Choose a model for the OpenAI-compatible server on :8081.
+
+    Preference order:
+      1. SPOCK_LLM_MODEL env var (explicit override)
+      2. session criteria families from /v1/models (llmfit_session_criteria.json)
+      3. first listed model id
+      4. criteria fallback_model_id
+    """
+    env = os.environ.get("SPOCK_LLM_MODEL", "").strip()
+    if env:
+        return env
+    try:
+        import json
+        import urllib.request
+
+        from llmfit_session_criteria import pick_loaded_or_fallback
+
+        with urllib.request.urlopen(BASE_URL + "/models", timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        ids = [(item.get("id") or "").strip() for item in data.get("data") or []]
+        ids = [mid for mid in ids if mid]
+        return pick_loaded_or_fallback(ids, role="chat")
+    except Exception:
+        pass
+    try:
+        from llmfit_session_criteria import fallback_model_id
+
+        return fallback_model_id("chat") or "google/gemma-3-12b-it-qat-q4_0-gguf"
+    except Exception:
+        return "google/gemma-3-12b-it-qat-q4_0-gguf"
+
+SYSTEM_PROMPT = """You are an expert IT technical writer. You will be provided a raw architecture blueprint of a Python and SQLite application. 
+- Your job is to output clean, markdown files where you will improve the following Markdown section for clarity and accuracy.  
+- Provide an detailed section of the SQLite 3 ship_computer.db and how it interacts with the Spock application for Ask AI and Deep Dive inquiries.
+- Give a full explanation of how the Spock application uses the embedding LLM and the vector DB.
+- Fix grammar and typos
+- Create explanation where concepts are unclear
+- Do NOT change the structure only add new sections where further explanation is necessary
+- Return ONLY the improved Markdown, no preamble"""
+
+# Approximate token budget per chunk (leave room for system prompt + output)
+MAX_CHUNK_CHARS = 6000  # ~1500 tokens; adjust to your context size
+
+
+def _split_fallback(text: str) -> list[str]:
+    """Split on double newlines if a section is still too big."""
+    paragraphs = text.split("\n\n")
+    chunks, current = [], ""
+    for p in paragraphs:
+        if current and len(current) + len(p) > MAX_CHUNK_CHARS:
+            chunks.append(current)
+            current = p
+        else:
+            current = f"{current}\n\n{p}" if current else p
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def _split_by_sections(markdown: str) -> list[str]:
+    """Split markdown into chunks at ## headers, respecting MAX_CHUNK_CHARS."""
+    # Split on ## headers, keeping the header with its content
+    sections = re.split(r"(?=^## )", markdown, flags=re.MULTILINE)
+
+    chunks = []
+    current = ""
+    for section in sections:
+        if len(section) > MAX_CHUNK_CHARS:
+            # Single oversized section: fall back to paragraph-level splits
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.extend(_split_fallback(section))
+        elif current and len(current) + len(section) > MAX_CHUNK_CHARS:
+            chunks.append(current)
+            current = section
+        else:
+            current += section
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def _enhance_chunk(chunk: str) -> str:
+    last: Exception | None = None
+    for attempt in range(LLM_RETRIES + 1):
+        try:
+            response = client.chat.completions.create(
+                model=_pick_model(),
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    # /no_think disables Qwen-style reasoning for fast, direct output
+                    {"role": "user", "content": chunk + "\n/no_think"},
+                ],
+                temperature=0.1, top_p=0.95
+            )
+            return response.choices[0].message.content or chunk
+        except Exception as e:  # timeouts / connection drops (model (re)loading)
+            last = e
+            if attempt < LLM_RETRIES:
+                time.sleep(3 * (attempt + 1))
+    raise last  # type: ignore[misc]
+
+
+def on_page_markdown(markdown: str, page, **kwargs):
+    """Called for each page after markdown is loaded, before rendering.
+
+    API reference pages under `reference/` are auto-generated by mkdocstrings;
+    polishing them is slow and risks mangling the generated markup. Structure
+    pages under `structure/` are machine-generated (Mermaid diagrams + symbol
+    tables); the LLM pass would risk corrupting them too.
+    """
+    if page.file.src_uri.startswith(("reference/", "structure/")):
+        return markdown
+    if SKIP_ENHANCE:
+        return markdown
+    try:
+        chunks = _split_by_sections(markdown)
+        enhanced = "\n".join(_enhance_chunk(c) for c in chunks)
+        return enhanced
+    except Exception as e:
+        print(f"[llm_enhance] Skipping {page.file.src_uri}: {e}")
+        return markdown

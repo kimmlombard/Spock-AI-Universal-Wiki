@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "source": "spock-default",
+  "created_at": "2026-10-27T00:00:00+00:00",
+  "filters": {
+    "provider": "Google",
+    "search": "gemma",
+    "min_fit": "marginal",
+    "runtime": "llamacpp",
+    "use_case": "chat",
+    "sort": "score",
+    "limit": 20,
+    "include_too_tight": false,
+    "max_context": null
+  },
+  "chat": {
+    "preferred_families": ["gemma", "gemma4", "gemma3"],
+    "fallback_families": ["nemotron", "qwen"],
+    "fallback_model_id": "google/gemma-3-12b-it-qat-q4_0-gguf"
+  },
+  "embed": {
+    "preferred_families": ["embeddinggemma"],
+    "fallback_families": ["nomic", "qwen3-embedding"],
+    "fallback_model_id": "ggml-org/embeddinggemma-300M-GGUF",
+    "allow_dim_change": true
+  }
+}

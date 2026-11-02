@@ -1,0 +1,7 @@
+# MCP adapter dependencies (Cursor / llama.cpp WebUI integration).
+# Installed as part of the full tier in Phase B.
+fastmcp==2.11.3
+# Imported directly by scripts/mcp_spock_server.py; they arrive transitively via
+# fastmcp today, declared here so a fastmcp bump cannot silently break the server.
+authlib
+starlette

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spock — Ask AI</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="top">
+      <div class="brand">
+        <span class="mark">◈</span>
+        <div>
+          <h1>Spock Ask AI</h1>
+          <p class="tagline">Ship computer · RAG over ship_computer.db</p>
+        </div>
+      </div>
+      <div class="top-meta">
+        <div id="model-name" class="model-name" title="Ask AI chat model">Model: —</div>
+        <div id="health" class="health" title="RAG /health">Checking…</div>
+      </div>
+    </header>
+
+    <section class="controls">
+      <div class="mode" role="group" aria-label="Mode">
+        <button type="button" id="mode-ask" class="mode-btn active" data-mode="ask">Ask</button>
+        <button type="button" id="mode-deep" class="mode-btn" data-mode="deep_dive">Deep Dive</button>
+      </div>
+      <label class="filter path-filter">
+        <span>Path</span>
+        <input id="path-filter" type="text" placeholder="e.g. spock  or  spock; llmfit" title="Path fragment or folder. Semicolon separates roots, so 'spock; llmfit' searches both." autocomplete="off" />
+      </label>
+    </section>
+
+    <section class="controls actions-row" aria-label="Chat actions">
+      <button type="button" id="clear-btn" class="ghost">Clear</button>
+      <label class="filter search-chat">
+        <span>Search</span>
+        <input id="chat-search" type="text" placeholder="Search chat…" autocomplete="off" />
+      </label>
+      <button type="button" id="chat-search-btn" class="ghost" title="Find in transcript">Search Chat</button>
+      <button type="button" id="save-md-btn" class="ghost" title="Download chat as Markdown">Save as .MD</button>
+      <button type="button" id="render-btn" class="ghost" title="Render last answer as Markdown/HTML">Render</button>
+    </section>
+
+    <section class="lang-row filters-combined" aria-label="Include and exclude filters">
+      <span class="lang-label">Include</span>
+      <div class="lang" id="lang-filters" role="group">
+        <button type="button" class="lang-btn active" data-ext="">Any</button>
+        <button type="button" class="lang-btn" data-ext=".py">*.py</button>
+        <button type="button" class="lang-btn" data-ext=".ts,.tsx">*.ts</button>
+        <button type="button" class="lang-btn" data-ext=".js,.jsx">*.js</button>
+        <button type="button" class="lang-btn" data-ext=".rs">*.rs</button>
+        <button type="button" class="lang-btn" data-ext=".go">*.go</button>
+        <button type="button" class="lang-btn" data-ext=".java,.kt">*.java</button>
+        <button type="button" class="lang-btn" data-ext=".cs">*.cs</button>
+        <button type="button" class="lang-btn" data-ext=".cpp,.c,.h">*.c/c++</button>
+      </div>
+      <span class="lang-label lang-label-exclude">Exclude</span>
+      <div class="lang" id="exclude-filters" role="group">
+        <button type="button" class="lang-btn active" data-excl=".md,.txt,.rst" title="Drop docs from retrieval">!.md !.txt</button>
+        <button type="button" class="lang-btn" data-excl="" title="Do not exclude">None</button>
+      </div>
+      <button type="button" id="exclude-generated" class="lang-btn active" title="Drop generated MkDocs site/ and search_index.json from retrieval">!site</button>
+    </section>
+
+    <main id="transcript" class="transcript" aria-live="polite"></main>
+
+    <div id="render-modal" class="render-modal" hidden>
+      <div class="render-dialog" role="dialog" aria-modal="true" aria-label="Rendered answer">
+        <header class="render-head">
+          <strong id="render-title">Rendered answer</strong>
+          <div class="render-actions">
+            <button type="button" id="render-open-tab" class="ghost">Open in tab</button>
+            <button type="button" id="render-close" class="ghost">Close</button>
+          </div>
+        </header>
+        <iframe id="render-frame" class="render-frame" title="Rendered Markdown or HTML"></iframe>
+      </div>
+    </div>
+
+    <footer class="composer">
+      <textarea id="input" rows="3" placeholder="Ask the ship computer…"></textarea>
+      <div class="composer-row">
+        <span id="status" class="status"></span>
+        <button type="button" id="send-btn" class="primary">Send</button>
+      </div>
+    </footer>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

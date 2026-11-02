@@ -1,0 +1,28 @@
+# Phase B tier - everything the app needs beyond the menu itself: document
+# extractors, the ingest pipeline, WebEngine rendering, and the MCP server.
+-r requirements-ui.txt
+-r requirements-mcp.txt
+
+# Rendering (must track the PyQt6 major.minor cap in requirements-ui.txt)
+PyQt6-WebEngine>=6.6,<6.12
+markdown
+
+# Extractors / ingest (starfleet_universal_extractor.py, wiki_agent.py)
+Pillow
+beautifulsoup4
+lxml
+python-docx
+PyMuPDF
+openpyxl
+pandas
+watchdog
+
+# Platform / integration
+keyring
+reportlab
+google-auth
+nvidia-ml-py
+
+# Vector search (sqlite-vec extension for fast ANN over document embeddings;
+# WarpCore/search.py falls back to a full scan if this is not installed)
+sqlite-vec>=0.1.6

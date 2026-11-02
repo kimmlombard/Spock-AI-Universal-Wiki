@@ -1,0 +1,341 @@
+
+=== DIRECTORY TREE (max depth 3, source files only) ===
+.env
+.gitignore
+_rag_api_pid.txt
+_start_rag_api.py
+_warpcore_path.py
+AIHelperDocuments
+app_config.json
+bootstrap.log
+bootstrap.ps1
+bootstrap_full_deps.ok
+bootstrap_phase_b_job.ps1
+bootstrap_phase_b_result.txt
+bootstrap_wizard
+bootstrap_wizard\__init__.py
+bootstrap_wizard\panel.py
+bootstrap_wizard\steps.py
+bootstrap_wizard\window.py
+bootstrap_wizard\worker.py
+captains_log.md
+chat_ai_helper.py
+config.json
+db_browser.py
+db_maintenance.py
+deep_dive.py
+docs
+docs\.logic_cache.json
+docs\architecture
+docs\cli
+docs\codebase
+docs\codebase\.codebase-scan.txt
+docs\codebase\ARCHITECTURE.md
+docs\codebase\CONCERNS.md
+docs\codebase\CONVENTIONS.md
+docs\codebase\INTEGRATIONS.md
+docs\codebase\STACK.md
+docs\codebase\STRUCTURE.md
+docs\codebase\TESTING.md
+docs\configuration
+docs\development
+docs\features
+docs\gen_logic.py
+docs\gen_pages.py
+docs\gen_schema.py
+docs\gen_structure.py
+docs\getting-started
+docs\reference
+docs\structure
+docs\structure\bootstrap_wizard
+docs\structure\EngineeringDeck
+docs\structure\logic
+docs\structure\LongRangeSensors
+docs\structure\model_selector
+docs\structure\NavigationStation
+docs\structure\Orchestrator
+docs\structure\ScienceStation
+docs\structure\spock_bringup
+docs\structure\spock_bringup_menu
+docs\structure\spock_live_monitor
+docs\structure\spock_mcp_adapter
+docs\structure\spock_onboarding
+docs\structure\spock_probe
+docs\structure\spock_progress_log
+docs\structure\spock_rag_adapter
+docs\structure\spock_shell
+docs\structure\spock_status
+docs\structure\spock_wiki_adapter
+docs\structure\WarpCore
+docs_server.py
+EngineeringDeck
+EngineeringDeck\__init__.py
+EngineeringDeck\__main__.py
+EngineeringDeck\app.py
+EngineeringDeck\ask_panel.py
+EngineeringDeck\maintenance_app.py
+EngineeringDeck\ship_computer_health.py
+enhance.log
+enhance_docs.py
+first_models_last.json
+gcloud-install.ps1
+gemini_openai_models.py
+helper_main.py
+index.md
+llama_server_manager.py
+llm_client.py
+llm_enhance.py
+llm_enhance_sav.py
+lm_studio_api.py
+LongRangeSensors
+LongRangeSensors\__init__.py
+LongRangeSensors\app.py
+LongRangeSensors\external_search_panel.py
+LongRangeSensors\uieg_capture_panel.py
+LongRangeSensors\uieg_crawler.py
+LongRangeSensors\uieg_database.py
+LongRangeSensors\uieg_import.py
+LongRangeSensors\uieg_maintenance.py
+LongRangeSensors\uieg_paths.py
+LongRangeSensors\uieg_preview.py
+LongRangeSensors\uieg_promote.py
+LongRangeSensors\uieg_repo_fetch.py
+LongRangeSensors\uieg_status.py
+LongRangeSensors\web_search_clients.py
+main.py
+mcp_panel.py
+mkdocs.yml
+mkdocs.yml.sav
+model_pick_policy.py
+model_selector
+model_selector\__init__.py
+model_selector\embedding_panel.py
+model_selector\hardware_panel.py
+model_selector\launch_panel.py
+model_selector\model_card.py
+model_selector\models_panel.py
+model_selector\state.py
+model_selector\status_window.py
+model_selector\widgets.py
+model_selector\workers.py
+model_selector_core.py
+model_selector_panels.py
+NavigationStation
+NavigationStation\__init__.py
+NavigationStation\app.py
+NavigationStation\steps
+NavigationStation\steps\__init__.py
+NavigationStation\steps\configure.py
+NavigationStation\steps\hardware.py
+NavigationStation\steps\launch.py
+NavigationStation\steps\status.py
+Orchestrator
+Orchestrator\__init__.py
+Orchestrator\app.py
+rag_api_server.py
+requirements-dev.txt
+requirements-docs.txt
+requirements-full.txt
+requirements-mcp.txt
+requirements-ocr.txt
+requirements-ui.txt
+requirements.txt
+reset.py
+reset_ship_computer.py
+reset_uieg.py
+scan_config.json
+ScienceStation
+ScienceStation\__init__.py
+ScienceStation\app.py
+ScienceStation\ships_logs.py
+ScienceStation\wiki_run.py
+scripts
+scripts\mcp_spock_server.py
+Setup-Spock.bat
+SetupMkDocs.bat
+ship_computer.db
+ship_computer_schema.sql
+Spock-AI-Helper.bat
+Spock-live_monitor.bat
+Spock-Maintenance.bat
+Spock-Menu-Console.bat
+Spock-Menu.bat
+Spock-Navigation.bat
+spock-onboarding-mkdocs.ps1
+spock-onboarding-mkdocs.sav.ps1
+Spock-Onboarding_Folder_Structure.json
+Spock-UIE-Wiki-KB.py
+Spock-UIEG-KnowledgeBase.bat
+Spock.bat
+spock.ps1
+spock_ai_helper.ps1
+spock_bringup
+spock_bringup\__init__.py
+spock_bringup\__main__.py
+spock_bringup_menu
+spock_bringup_menu\__init__.py
+spock_bringup_menu\__main__.py
+spock_bringup_menu\acquire_dialog.py
+spock_bringup_menu\app.py
+spock_bringup_menu\center_log.py
+spock_bringup_menu\steps.py
+spock_codebase_knowledge
+spock_codebase_knowledge\__init__.py
+spock_codebase_knowledge\assets
+spock_codebase_knowledge\assets\templates
+spock_codebase_knowledge\assets\templates\ARCHITECTURE.md
+spock_codebase_knowledge\assets\templates\CONCERNS.md
+spock_codebase_knowledge\assets\templates\CONVENTIONS.md
+spock_codebase_knowledge\assets\templates\INTEGRATIONS.md
+spock_codebase_knowledge\assets\templates\STACK.md
+spock_codebase_knowledge\assets\templates\STRUCTURE.md
+spock_codebase_knowledge\assets\templates\TESTING.md
+spock_codebase_knowledge\filters.py
+spock_codebase_knowledge\populate.py
+spock_codebase_knowledge\references
+spock_codebase_knowledge\run.py
+spock_codebase_knowledge\scripts
+spock_codebase_knowledge\scripts\scan.py
+spock_health_report.py
+spock_live_monitor
+spock_live_monitor\__init__.py
+spock_live_monitor\__main__.py
+
+=== STACK DETECTION (manifest files) ===
+
+--- requirements.txt ---
+# Aggregate of the tiers bootstrap installs. `pip install -r requirements.txt`
+# still gives you a complete runtime.
+#
+#   requirements-ui.txt    Phase A - PyQt6 menu only
+#   requirements-full.txt  Phase B - extractors, ingest, WebEngine (+ MCP)
+#   requirements-mcp.txt   MCP server, pulled in by the full tier
+#
+# Opt-in, never auto-installed: requirements-ocr.txt (needs the Tesseract
+# binary), requirements-dev.txt (pytest), requirements-docs.txt (system 3.12).
+-r requirements-full.txt
+
+
+=== ENTRY POINTS ===
+Found: main.py
+Found: EngineeringDeck/__main__.py
+Found: spock_bringup/__main__.py
+Found: spock_bringup_menu/__main__.py
+Found: spock_live_monitor/__main__.py
+Found: spock_mcp_adapter/__main__.py
+Found: spock_probe/__main__.py
+Found: spock_progress_log/__main__.py
+Found: spock_rag_adapter/__main__.py
+Found: spock_shell/__main__.py
+Found: spock_status/__main__.py
+Found: spock_wiki_adapter/__main__.py
+
+=== LINTING AND FORMATTING CONFIG ===
+No linting or formatting config files found in project root.
+
+=== ENVIRONMENT VARIABLE TEMPLATES ===
+No .env.example or .env.template found. Identify required environment variables by searching the code and config for environment variable reads.
+
+=== TODO / FIXME / HACK (production code only, test dirs excluded) ===
+spock_codebase_knowledge\populate.py:140: rows.append((rel, purpose.get(item.name, "[TODO]"), f"`{item.name}`"))
+spock_codebase_knowledge\populate.py:202: return "[TODO] No README/ROADMAP/SPEC found at project root."
+spock_codebase_knowledge\populate.py:226: framework = "pytest" if files or (root / "pytest.ini").is_file() or (root / "pyproject.toml").is_file() else "[TODO]"
+spock_codebase_knowledge\populate.py:267: bits.append("- [TODO] No root ruff/black/flake8 config detected by scan.")
+spock_codebase_knowledge\populate.py:273: todos = _section(sections, "TODO", "FIXME")
+spock_codebase_knowledge\populate.py:273: todos = _section(sections, "TODO", "FIXME")
+spock_codebase_knowledge\populate.py:286: lines.append("### Sample TODO/FIXME (filtered)\n")
+spock_codebase_knowledge\populate.py:286: lines.append("### Sample TODO/FIXME (filtered)\n")
+spock_codebase_knowledge\populate.py:289: lines.append("- No production TODOs after skip_dirs filter.")
+spock_codebase_knowledge\populate.py:291: lines.append("- No TODO/FIXME hits in filtered scan.")
+spock_codebase_knowledge\populate.py:291: lines.append("- No TODO/FIXME hits in filtered scan.")
+spock_codebase_knowledge\populate.py:354: stack += "[TODO] No requirements*.txt parsed.\n"
+spock_codebase_knowledge\populate.py:371: _table(top, ("Path", "Purpose", "Evidence")) if top else "[TODO]\n"
+spock_codebase_knowledge\populate.py:377: struct += "- [TODO] No entry points detected\n"
+spock_codebase_knowledge\populate.py:386: struct += "[TODO] No packages with `__init__.py` found.\n"
+spock_codebase_knowledge\populate.py:430: testing += "- [TODO] No `tests/test_*.py` found\n"
+spock_codebase_knowledge\populate.py:438: "TODOs under skipped trees (`data/`, `models/`, … from `.gitignore` / "
+spock_codebase_knowledge\populate.py:441: concerns += "\n" + _evidence_block(sections, "TODO", "CHURN", "LARGEST")
+spock_codebase_knowledge\__init__.py:4: v1 fills docs from scan evidence; narrative gaps stay as ``[TODO]``.
+spock_codebase_knowledge\scripts\scan.py:28: TODO_LIMIT = 60
+spock_codebase_knowledge\scripts\scan.py:312: """Search for TODO/FIXME/HACK comments."""
+spock_codebase_knowledge\scripts\scan.py:312: """Search for TODO/FIXME/HACK comments."""
+spock_codebase_knowledge\scripts\scan.py:312: """Search for TODO/FIXME/HACK comments."""
+spock_codebase_knowledge\scripts\scan.py:314: patterns = ["TODO", "FIXME", "HACK"]
+spock_codebase_knowledge\scripts\scan.py:314: patterns = ["TODO", "FIXME", "HACK"]
+spock_codebase_knowledge\scripts\scan.py:314: patterns = ["TODO", "FIXME", "HACK"]
+spock_codebase_knowledge\scripts\scan.py:343: return todos[:TODO_LIMIT]
+spock_codebase_knowledge\scripts\scan.py:649: # TODOs
+spock_codebase_knowledge\scripts\scan.py:652: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", todos, output_file)
+spock_codebase_knowledge\scripts\scan.py:652: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", todos, output_file)
+spock_codebase_knowledge\scripts\scan.py:652: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", todos, output_file)
+spock_codebase_knowledge\scripts\scan.py:654: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", ["None found."], output_file)
+spock_codebase_knowledge\scripts\scan.py:654: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", ["None found."], output_file)
+spock_codebase_knowledge\scripts\scan.py:654: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", ["None found."], output_file)
+
+=== GIT RECENT COMMITS (last 20) ===
+6fbaaa2 Add Spock Bootstrap Wizard launchers and control panel.
+64d482b Add indeterminate busy progress bars to Wiki Scan, Ask AI, and Bringup.
+f3968a5 Improve Ask timeout UX, Good Results coaching, and Wiki Scan reliability.
+0bdbb7a Fix Clear Embeddings re-embed and harden launch/recipe handoff.
+6b86918 Import the Spock Universal AI Wiki application
+8ef5ee2 first commit
+
+=== HIGH-CHURN FILES (last 90 days, top 20) ===
+   3 EngineeringDeck/ask_panel.py
+   3 ScienceStation/wiki_run.py
+   3 spock_wiki_adapter/wiki_run.py
+   3 AIHelperDocuments/Spock-Navigation-Station-HELPER.md
+   3 NavigationStation/app.py
+   3 model_selector/launch_panel.py
+   3 starfleet_universal_extractor.py
+   2 spock_bringup_menu/acquire_dialog.py
+   2 spock_progress_log/panel.py
+   2 spock_shell/busy_ui.py
+   2 AIHelperDocuments/How does Ask AI and Deep Dive work in Spock  How can I tune the context size.md
+   2 ScienceStation/app.py
+   2 ScienceStation/ships_logs.py
+   2 db_maintenance.py
+   2 deep_dive.py
+   2 llm_client.py
+   2 wiki_agent_status.py
+   2 wiki_maintenance.py
+   2 AIHelperDocuments/Spock-Bringup-Menu-HELPER.md
+   2 AIHelperDocuments/Spock-Engineering-Maintenance-HELPER.md
+
+=== MONOREPO SIGNALS ===
+No monorepo signals detected.
+
+=== CODE METRICS ===
+Total files scanned: 270
+Total lines of code: 55880
+
+Files by language:
+  Python: 201
+  Other: 68
+  JavaScript: 1
+
+Top 10 largest files:
+ship_computer.db: 29224.0KB
+wiki_maintenance.py: 84.5KB
+docs\.logic_cache.json: 76.5KB
+spock_scanner_core.py: 51.6KB
+wiki_agent.py: 48.7KB
+spock_shell\profiles.py: 47.8KB
+model_selector\launch_panel.py: 44.6KB
+deep_dive.py: 44.5KB
+model_selector\status_window.py: 43.9KB
+model_selector_core.py: 43.9KB
+
+=== CI/CD PIPELINES ===
+No CI/CD pipelines detected.
+
+=== CONTAINERS & ORCHESTRATION ===
+No containerization configs detected.
+
+=== SECURITY & COMPLIANCE ===
+No security configs detected.
+
+=== PERFORMANCE & TESTING ===
+No performance testing configs detected.
+
+=== SCAN COMPLETE ===

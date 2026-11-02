@@ -1,0 +1,4 @@
+# Opt-in dev tier - test runner only, never installed by bootstrap.
+#   .venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+#   .venv\Scripts\python.exe -m pytest tests -q
+pytest>=8.0

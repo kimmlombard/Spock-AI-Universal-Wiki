@@ -1,0 +1,86 @@
+# Virtualenv / Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.HF_TOKEN
+*.pem
+credentials.json
+**/credentials*.json
+**/*token*.txt
+
+# Bootstrap / readiness artifacts
+*.log
+bootstrap.log
+spock_ready_last.json
+first_models_last.json
+bootstrap_phase_b_result.txt
+bootstrap_full_deps.ok
+
+# Large / local runtime data
+models/
+# tools/: keep layout docs + empty dir markers; ignore binaries / vendor trees
+tools/**
+!tools/README.md
+!tools/llama-server/
+!tools/llama-server/.gitkeep
+!tools/llmfit/
+!tools/llmfit/.gitkeep
+logs/
+data/
+backups/
+captured_files/
+promoted_research/
+uieg_capture.db
+config_archive/
+%SystemDrive%/
+
+# Databases & SQLite sidecars (keep *.sql schemas in repo)
+*.db
+*.db-wal
+*.db-shm
+*.gguf
+
+# Process / session state
+*.pid
+*_pid.txt
+wiki_agent_session.json
+scan_config.json
+captains_log.md
+# Root-only runtime indexes (do NOT ignore docs/**/index.md)
+/index.md
+/captains_log.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local overlays / archives / generated docs sites
+*.zip
+*.db.bak*
+*.bak
+app_config.json
+config.json
+site/
+gallery/site/
+
+# Raw ShareX PNGs (published corpus is gallery/docs/images/*.jpg)
+assets/*.png
+assets/*.PNG
+
+# Screenshot pre-scan workspace (outside repo by default; ignore if created under tree)
+Spock-Images-Temp/
+
+# Local agent / IDE caches
+.cursor/
+agent-transcripts/

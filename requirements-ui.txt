@@ -1,0 +1,8 @@
+# Phase A tier - the only packages `python -m spock_bringup_menu` needs to open.
+# Keep this list minimal: it is the gate between a fresh clone and a usable menu.
+# Cap below 6.12: PyPI PyQt6-WebEngine still tops out at 6.11.x; mixing 6.12
+# Qt DLLs with WebEngine 6.11 yields "DLL load failed ... QtWebEngineWidgets".
+PyQt6>=6.6,<6.12
+requests>=2.31
+psutil>=5.9
+huggingface_hub>=0.23

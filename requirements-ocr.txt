@@ -1,0 +1,7 @@
+# Opt-in OCR tier - never installed by bootstrap Phase A or Phase B.
+# Needs the native Tesseract binary as well as this wrapper:
+#   winget install UB-Mannheim.TesseractOCR
+# The extractor looks for C:\Program Files\Tesseract-OCR\tesseract.exe; set
+# TESSERACT_CMD to override. Without both halves, Wiki Scan skips image text
+# instead of failing (see ocr_status() in starfleet_universal_extractor.py).
+pytesseract
