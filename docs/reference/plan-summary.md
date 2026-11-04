@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Spock-Onboarding is in active development. The console-first bring-up is complete; the PyQt6 GUI is under construction.
+Spock-Onboarding is in active development. Console bring-up, PyQt6 station UIs, RAG, MCP, and wiki indexing are complete on Windows; Linux support is in place. Apple Metal remains planned.
 
 ## Completed
 
@@ -13,13 +13,11 @@ Spock-Onboarding is in active development. The console-first bring-up is complet
 - [x] Readiness contract (`spock_ready_last.json`)
 - [x] Ship's computer SQLite schema
 - [x] `spock_shell` PyQt6 GUI skeleton
-
-## In Progress
-
-- [ ] Full PyQt6 station UIs
-- [ ] RAG pipeline integration
-- [ ] MCP adapter tool registration
-- [ ] Wiki agent indexing
+- [x] Full PyQt6 station UIs
+- [x] RAG pipeline integration
+- [x] MCP adapter tool registration
+- [x] Wiki agent indexing
+- [x] Linux
 
 ## Planned
 
@@ -27,3 +25,4 @@ Spock-Onboarding is in active development. The console-first bring-up is complet
 - [ ] Automated model selection
 - [ ] Knowledge-base versioning
 - [ ] Cloud backup integration
+- [ ] Apple Metal

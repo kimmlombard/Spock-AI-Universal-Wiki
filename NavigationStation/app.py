@@ -135,17 +135,55 @@ class NavigationStationWindow(SuiteShellWindow):
     def _show_run(self) -> None:
         self.show_center(self._steps["run"])
 
+    def _openai_compat_from_config(self) -> Dict[str, Any]:
+        """Slice Ask AI OpenAI-compatible fields for the Gemini (Vertex) tab."""
+        c = self.config
+        return {
+            "openai_compat_base_url": (c.get("openai_compat_base_url") or "").strip(),
+            "openai_compat_api_key": c.get("openai_compat_api_key") or "",
+            "openai_compat_model": (c.get("openai_compat_model") or "").strip(),
+            "openai_compat_n_ctx": c.get("openai_compat_n_ctx"),
+            "openai_compat_max_tokens": c.get("openai_compat_max_tokens"),
+        }
+
+    def _sync_models_openai_compat(self, _provider: str = "") -> None:
+        models = self._steps.get("models")
+        if models is not None:
+            models.set_openai_compat(self._openai_compat_from_config())
+
+    def _on_gemini_use_for_ask_ai(self, model_id: str) -> None:
+        mid = (model_id or "").strip()
+        if not mid:
+            return
+        self.config["openai_compat_model"] = mid
+        self.config["ask_ai_provider"] = "OpenAI-compatible"
+        save_config(self.config)
+        configure = self._steps.get("configure")
+        if configure is not None:
+            tab = (getattr(configure, "connectors", None) or {}).get(
+                "OpenAI-compatible"
+            )
+            model_edit = getattr(tab, "model", None)
+            if model_edit is not None:
+                model_edit.setText(mid)
+            refresh = getattr(configure, "refresh_active_provider", None)
+            if callable(refresh):
+                refresh()
+
     def _show_models(self) -> None:
         # Query HF Hub needs hardware_specs, which the launch probe supplies.
         # Only a failed probe leaves this empty — say so instead of rescanning
         # on every visit; SCAN HARDWARE on 1 Hardware is the retry.
         self._enable_hf_query_buttons()
         models = self._steps.get("models")
-        if models is not None and not self.state.hardware_specs:
-            models.download_status.setText(
-                "Hardware probe unavailable — run SCAN HARDWARE on 1 Hardware, "
-                "then return here to query the Hub."
-            )
+        if models is not None:
+            # Pick up Vertex / OpenAI-compatible settings saved on step 4.
+            models.set_openai_compat(self._openai_compat_from_config())
+            if not self.state.hardware_specs:
+                models.download_status.setText(
+                    "Hardware probe unavailable — run SCAN HARDWARE on 1 Hardware, "
+                    "then return here to query the Hub."
+                )
         self.show_center(self._steps["models"])
 
     def _show_model_info(self) -> None:
@@ -241,8 +279,13 @@ class NavigationStationWindow(SuiteShellWindow):
 
     def _build_steps(self) -> None:
         self._steps["hardware"] = build_hardware_step(self.theme, self.state)
-        models = ModelsPanel(self.theme, self.state)
+        models = ModelsPanel(
+            self.theme,
+            self.state,
+            openai_compat=self._openai_compat_from_config(),
+        )
         models.request_show_info.connect(self._show_model_info_for)
+        models.gemini_use_for_ask_ai.connect(self._on_gemini_use_for_ask_ai)
         self._steps["models"] = models
         self._steps["model_info"] = ModelInfoPanel(self.theme, self.state)
         self._steps["launch"] = build_launch_step(
@@ -273,6 +316,7 @@ class NavigationStationWindow(SuiteShellWindow):
             save_config=lambda: save_config(self.config),
         )
         configure.save_profile_requested.connect(self._save_profile)
+        configure.provider_changed.connect(self._sync_models_openai_compat)
         self._steps["configure"] = configure
         if launch_panel is not None:
             launch_panel.llama_gui_launched.connect(self._after_llama_gui_launch)
@@ -517,8 +561,10 @@ class NavigationStationWindow(SuiteShellWindow):
             save_config=lambda: save_config(self.config),
         )
         configure.save_profile_requested.connect(self._save_profile)
+        configure.provider_changed.connect(self._sync_models_openai_compat)
         self._steps["configure"] = configure
         self.stack.addWidget(configure)
+        self._sync_models_openai_compat()
         emb = getattr(configure, "embedding_panel", None)
         launch_panel = getattr(self._steps.get("launch"), "_panel", None)
         if emb is not None and launch_panel is not None:

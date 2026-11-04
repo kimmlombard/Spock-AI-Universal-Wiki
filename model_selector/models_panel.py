@@ -782,8 +782,8 @@ class ModelsPanel(QWidget):
     def _gemini_open_docs(self) -> None:
         QDesktopServices.openUrl(
             QUrl(
-                "https://cloud.google.com/vertex-ai/generative-ai/docs/"
-                "migrate/openai/models"
+                "https://docs.cloud.google.com/gemini-enterprise-agent-platform/"
+                "models/google-models?hl=en#generally-available-gemini-models"
             )
         )
 

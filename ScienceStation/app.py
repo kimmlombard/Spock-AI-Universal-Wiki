@@ -20,6 +20,7 @@ from ScienceStation.ships_logs import build_ships_logs_panel
 from ScienceStation.wiki_run import build_wiki_agent_run_panel
 from spock_shell.brave_search import build_brave_search_panel
 from spock_shell.bridge_host import make_llm_client
+from spock_shell.config import save_config
 from spock_shell.markdown_home import build_markdown_home, reload_markdown_home
 from spock_shell.paths import SHIP_COMPUTER_DB, ensure_root_on_path
 from spock_shell.widgets import SidePanel
@@ -124,10 +125,34 @@ class ScienceStationWindow(SuiteShellWindow):
         layout.addWidget(search)
         super().build_right_dock(layout)
 
+    def _openai_compat_from_config(self) -> Dict[str, Any]:
+        """Slice Ask AI OpenAI-compatible fields for the Gemini (Vertex) tab."""
+        c = self.config
+        return {
+            "openai_compat_base_url": (c.get("openai_compat_base_url") or "").strip(),
+            "openai_compat_api_key": c.get("openai_compat_api_key") or "",
+            "openai_compat_model": (c.get("openai_compat_model") or "").strip(),
+            "openai_compat_n_ctx": c.get("openai_compat_n_ctx"),
+            "openai_compat_max_tokens": c.get("openai_compat_max_tokens"),
+        }
+
+    def _on_gemini_use_for_ask_ai(self, model_id: str) -> None:
+        mid = (model_id or "").strip()
+        if not mid:
+            return
+        self.config["openai_compat_model"] = mid
+        self.config["ask_ai_provider"] = "OpenAI-compatible"
+        save_config(self.config)
+
     def _build_steps(self) -> None:
         self._steps["hardware"] = build_hardware_step(self.theme, self.state)
-        models = ModelsPanel(self.theme, self.state)
+        models = ModelsPanel(
+            self.theme,
+            self.state,
+            openai_compat=self._openai_compat_from_config(),
+        )
         models.request_show_info.connect(self._show_model_info_for)
+        models.gemini_use_for_ask_ai.connect(self._on_gemini_use_for_ask_ai)
         self._steps["models"] = models
         launch = LaunchPanel(self.theme, self.state, self.server_manager)
         launch.request_model_info.connect(self._show_model_info)
@@ -174,6 +199,9 @@ class ScienceStationWindow(SuiteShellWindow):
 
     def _show_models(self) -> None:
         self._enable_hf_query_buttons()
+        models = self._steps.get("models")
+        if models is not None:
+            models.set_openai_compat(self._openai_compat_from_config())
         self.show_center(self._steps["models"])
 
     def _show_launch(self) -> None:
