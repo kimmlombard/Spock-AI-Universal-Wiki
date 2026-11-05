@@ -1,10 +1,11 @@
-"""Detect / download llama-server (Windows) — headless."""
+"""Detect / download llama-server (Windows + Linux/WSL) — headless."""
 
 from __future__ import annotations
 
 import json
 import os
 import shutil
+import tarfile
 import zipfile
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
@@ -144,28 +145,45 @@ def _download_file(url: str, dest: Path, cb: ProgressCb = None) -> None:
     _say(cb, f"Saved {dest.name}")
 
 
+def _asset_name(asset: dict) -> str:
+    return str(asset.get("name", "")).lower()
+
+
+def _match_cudart(assets: list, bin_asset: dict) -> Optional[dict]:
+    low = _asset_name(bin_asset)
+    want: Tuple[str, ...]
+    if "cuda-12.8" in low:
+        want = ("cuda-12.8",)
+    elif "cuda-12.4" in low:
+        want = ("cuda-12.4",)
+    elif "cuda-13" in low:
+        want = ("cuda-13",)
+    elif "cuda-12" in low:
+        want = ("cuda-12",)
+    else:
+        return None
+    for a in assets:
+        name = _asset_name(a)
+        if "cudart" not in name:
+            continue
+        if all(p in name for p in want):
+            return a
+    return None
+
+
 def _pick_windows_assets(assets: list) -> Tuple[Optional[dict], Optional[dict]]:
     zips = [
         a
         for a in assets
-        if a.get("browser_download_url") and str(a.get("name", "")).lower().endswith(".zip")
+        if a.get("browser_download_url") and _asset_name(a).endswith(".zip")
     ]
 
     def find_llama(*parts: str) -> Optional[dict]:
         for a in zips:
-            low = str(a.get("name", "")).lower()
+            low = _asset_name(a)
             if "cudart" in low:
                 continue
             if not low.startswith("llama-"):
-                continue
-            if all(p in low for p in parts):
-                return a
-        return None
-
-    def find_cudart(*parts: str) -> Optional[dict]:
-        for a in zips:
-            low = str(a.get("name", "")).lower()
-            if "cudart" not in low:
                 continue
             if all(p in low for p in parts):
                 return a
@@ -178,16 +196,106 @@ def _pick_windows_assets(assets: list) -> Tuple[Optional[dict], Optional[dict]]:
         or find_llama("bin-win-vulkan", "x64")
         or find_llama("bin-win-cpu", "x64")
     )
-    cudart = None
-    if bin_asset:
-        low = bin_asset["name"].lower()
-        if "cuda-12.4" in low:
-            cudart = find_cudart("cuda-12.4")
-        elif "cuda-13" in low:
-            cudart = find_cudart("cuda-13")
-        elif "cuda-12" in low:
-            cudart = find_cudart("cuda-12")
+    cudart = _match_cudart(zips, bin_asset) if bin_asset else None
     return bin_asset, cudart
+
+
+def _pick_linux_assets(assets: list) -> Tuple[Optional[dict], Optional[dict]]:
+    tars = [
+        a
+        for a in assets
+        if a.get("browser_download_url")
+        and (
+            _asset_name(a).endswith(".tar.gz")
+            or _asset_name(a).endswith(".tgz")
+        )
+    ]
+
+    def find_llama(*parts: str) -> Optional[dict]:
+        for a in tars:
+            low = _asset_name(a)
+            if "cudart" in low:
+                continue
+            if not low.startswith("llama-"):
+                continue
+            if all(p in low for p in parts):
+                return a
+        return None
+
+    bin_asset = (
+        find_llama("bin-ubuntu-cuda-12.8", "x64")
+        or find_llama("bin-ubuntu-cuda-12.4", "x64")
+        or find_llama("bin-ubuntu-cuda-12", "x64")
+        or find_llama("bin-ubuntu-cuda-13", "x64")
+        or find_llama("bin-ubuntu-vulkan", "x64")
+        or find_llama("bin-ubuntu-cpu", "x64")
+        or find_llama("bin-linux-cuda-12", "x64")
+        or find_llama("bin-linux-cpu", "x64")
+    )
+    cudart = _match_cudart(tars, bin_asset) if bin_asset else None
+    return bin_asset, cudart
+
+
+def _extract_zip(archive: Path, dest_dir: Path) -> None:
+    with zipfile.ZipFile(archive, "r") as zf:
+        zf.extractall(dest_dir)
+
+
+def _extract_tar_flat(archive: Path, dest_dir: Path) -> None:
+    """Extract a release tarball, stripping a single shared top-level folder."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(archive, "r:*") as tf:
+        members = [m for m in tf.getmembers() if m.name and m.name != "."]
+        tops = {Path(m.name).parts[0] for m in members if Path(m.name).parts}
+        strip = len(tops) == 1
+        for member in members:
+            parts = Path(member.name).parts
+            if not parts:
+                continue
+            if strip:
+                if len(parts) == 1:
+                    continue
+                rel = Path(*parts[1:])
+            else:
+                rel = Path(*parts)
+            target = dest_dir / rel
+            if member.isdir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            if member.issym() or member.islnk():
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            src = tf.extractfile(member)
+            if src is None:
+                continue
+            with src, open(target, "wb") as out:
+                shutil.copyfileobj(src, out)
+            if member.mode:
+                try:
+                    os.chmod(target, member.mode & 0o777)
+                except OSError:
+                    pass
+
+
+def _write_llama_path_tips(root: Path, dest_dir: Path, exe: str) -> None:
+    tip = dest_dir / "SPOCK_LLAMA_PATH.txt"
+    tip.write_text(exe + "\n", encoding="utf-8")
+    root_tip = root / "tools" / "llama-server"
+    root_tip.mkdir(parents=True, exist_ok=True)
+    (root_tip / "SPOCK_LLAMA_PATH.txt").write_text(exe + "\n", encoding="utf-8")
+
+
+def _prepare_llama_dest(root: Path, install_dir: Optional[Path]) -> Path:
+    dest_dir = Path(install_dir) if install_dir else (root / "tools" / "llama-server")
+    dest_dir = Path(normalize_fs_path(str(dest_dir)))
+    # Caller may pass the binary path; install into its parent directory.
+    if dest_dir.suffix.lower() == ".exe" or (
+        dest_dir.name == "llama-server" and not dest_dir.is_dir()
+    ):
+        dest_dir = dest_dir.parent
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    (dest_dir / "models").mkdir(parents=True, exist_ok=True)
+    return dest_dir
 
 
 def download_llama_server_windows(
@@ -196,14 +304,8 @@ def download_llama_server_windows(
     cb: ProgressCb = None,
 ) -> str:
     if os.name != "nt":
-        raise RuntimeError("Automatic llama.cpp zip download is Windows-only in this build.")
-    dest_dir = Path(install_dir) if install_dir else (root / "tools" / "llama-server")
-    dest_dir = Path(normalize_fs_path(str(dest_dir)))
-    if dest_dir.suffix.lower() == ".exe":
-        dest_dir = dest_dir.parent
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    (dest_dir / "models").mkdir(parents=True, exist_ok=True)
-
+        raise RuntimeError("download_llama_server_windows requires Windows.")
+    dest_dir = _prepare_llama_dest(root, install_dir)
     _say(cb, f"Install folder: {dest_dir}")
     _say(cb, "Fetching latest llama.cpp release metadata…")
     data = _http_json(LLAMA_RELEASES_API)
@@ -221,28 +323,86 @@ def download_llama_server_windows(
 
     bin_zip = staging / bin_asset["name"]
     _download_file(bin_asset["browser_download_url"], bin_zip, cb)
-    with zipfile.ZipFile(bin_zip, "r") as zf:
-        zf.extractall(dest_dir)
+    _extract_zip(bin_zip, dest_dir)
 
     if cudart and cudart.get("name") != bin_asset.get("name"):
         crt_zip = staging / cudart["name"]
         _download_file(cudart["browser_download_url"], crt_zip, cb)
-        with zipfile.ZipFile(crt_zip, "r") as zf:
-            zf.extractall(dest_dir)
+        _extract_zip(crt_zip, dest_dir)
 
     exe = detect_llama_server(root, install_dir=str(dest_dir))
     if not exe:
         raise RuntimeError(
             f"Downloaded release {tag} but llama-server.exe not found under {dest_dir}"
         )
-    tip = dest_dir / "SPOCK_LLAMA_PATH.txt"
-    tip.write_text(exe + "\n", encoding="utf-8")
-    root_tip = root / "tools" / "llama-server"
-    root_tip.mkdir(parents=True, exist_ok=True)
-    (root_tip / "SPOCK_LLAMA_PATH.txt").write_text(exe + "\n", encoding="utf-8")
+    _write_llama_path_tips(root, dest_dir, exe)
     _say(cb, f"llama-server ready: {exe}")
     shutil.rmtree(staging, ignore_errors=True)
     return exe
+
+
+def download_llama_server_linux(
+    root: Path,
+    install_dir: Optional[Path] = None,
+    cb: ProgressCb = None,
+) -> str:
+    if os.name == "nt":
+        raise RuntimeError("download_llama_server_linux requires Linux/WSL.")
+    dest_dir = _prepare_llama_dest(root, install_dir)
+    _say(cb, f"Install folder: {dest_dir}")
+    _say(cb, "Fetching latest llama.cpp release metadata…")
+    data = _http_json(LLAMA_RELEASES_API)
+    tag = data.get("tag_name", "?")
+    assets = data.get("assets") or []
+    bin_asset, cudart = _pick_linux_assets(assets)
+    if not bin_asset:
+        raise RuntimeError(
+            f"No Linux/Ubuntu llama-*.tar.gz found in release {tag}. "
+            "Place a native llama-server under tools/llama-server/ manually."
+        )
+    _say(cb, f"Release {tag}: binary={bin_asset.get('name')}")
+
+    staging = dest_dir / "_download"
+    if staging.exists():
+        shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir(parents=True, exist_ok=True)
+
+    bin_tar = staging / bin_asset["name"]
+    _download_file(bin_asset["browser_download_url"], bin_tar, cb)
+    _extract_tar_flat(bin_tar, dest_dir)
+
+    if cudart and cudart.get("name") != bin_asset.get("name"):
+        crt_tar = staging / cudart["name"]
+        _download_file(cudart["browser_download_url"], crt_tar, cb)
+        _extract_tar_flat(crt_tar, dest_dir)
+
+    exe_path = dest_dir / "llama-server"
+    if exe_path.is_file():
+        try:
+            os.chmod(exe_path, exe_path.stat().st_mode | 0o111)
+        except OSError:
+            pass
+
+    exe = detect_llama_server(root, install_dir=str(dest_dir))
+    if not exe:
+        raise RuntimeError(
+            f"Downloaded release {tag} but llama-server not found under {dest_dir}"
+        )
+    _write_llama_path_tips(root, dest_dir, exe)
+    _say(cb, f"llama-server ready: {exe}")
+    shutil.rmtree(staging, ignore_errors=True)
+    return exe
+
+
+def download_llama_server(
+    root: Path,
+    install_dir: Optional[Path] = None,
+    cb: ProgressCb = None,
+) -> str:
+    """Download the host-native llama-server into ``tools/llama-server``."""
+    if os.name == "nt":
+        return download_llama_server_windows(root, install_dir=install_dir, cb=cb)
+    return download_llama_server_linux(root, install_dir=install_dir, cb=cb)
 
 
 def ensure_llama_server(
@@ -262,4 +422,4 @@ def ensure_llama_server(
             "binary under tools/llama-server/ (Linux: llama-server, Windows: llama-server.exe)"
         )
     dest = Path(install_dir) if install_dir else Path(default_llama_install_dir(root))
-    return download_llama_server_windows(root, install_dir=dest, cb=cb)
+    return download_llama_server(root, install_dir=dest, cb=cb)

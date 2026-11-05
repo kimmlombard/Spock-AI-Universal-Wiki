@@ -432,8 +432,23 @@ def export_to_json(db_path: str, out_dir: str) -> Dict[str, str]:
     return written
 
 
+def ensure_paths_healed(db_path: str, root: Optional[str] = None) -> Dict[str, Any]:
+    """Remap Spock_Console paths when the DB was copied across Linux/Windows roots."""
+    try:
+        from WarpCore.path_relocate import heal_relocated_paths
+
+        return heal_relocated_paths(
+            db_path,
+            root=Path(root).resolve() if root else Path(db_path).resolve().parent,
+            by="path_relocate",
+        )
+    except Exception as exc:  # pragma: no cover — never block app start
+        return {"ok": False, "error": str(exc), "changed": []}
+
+
 def load_app_config(db_path: str) -> Dict[str, Any]:
     """Return the full app config dict (defaults merged), mirroring old load_config()."""
+    ensure_paths_healed(db_path)
     if not has(db_path, "app.theme"):
         return dict(DEFAULT_APP_CONFIG)
     rows = get_all(db_path, prefix="app.")
@@ -502,6 +517,7 @@ def save_app_config(db_path: str, config: Dict[str, Any], by: str = "app") -> No
 
 
 def load_scan_config(db_path: str) -> Dict[str, Any]:
+    ensure_paths_healed(db_path)
     if not has(db_path, "scan.scan_roots"):
         return dict(DEFAULT_SCAN_CONFIG)
     rows = get_all(db_path, prefix="scan.")

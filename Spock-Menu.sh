@@ -4,9 +4,11 @@
 
 set -uo pipefail
 
-# WSLg / PyQt readability (override in the shell before launch if needed)
-export QT_SCALE_FACTOR="${QT_SCALE_FACTOR:-1.25}"
-export QT_FONT_DPI="${QT_FONT_DPI:-144}"
+# Qt sizing: native Ubuntu defaults (1.0 / 96). Early WSL smoke tests used
+# 1.25 / 144 — override only when WSLg/HiDPI text is still too small, e.g.:
+#   QT_SCALE_FACTOR=1.25 QT_FONT_DPI=144 ./Spock-Menu.sh
+export QT_SCALE_FACTOR="${QT_SCALE_FACTOR:-1.0}"
+export QT_FONT_DPI="${QT_FONT_DPI:-96}"
 # WSLg: gio/xdg-open often fails for http:// — prefer Firefox (or set BROWSER=…)
 export BROWSER="${BROWSER:-firefox}"
 

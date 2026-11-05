@@ -128,6 +128,7 @@ def _load_scan_roots() -> list:
         _warpcore_path.ensure()
         from WarpCore import settings_store
 
+        settings_store.ensure_paths_healed(str(DB_PATH))
         roots = settings_store.get(str(DB_PATH), "scan.scan_roots")
         if roots:
             return [str(r) for r in roots]
