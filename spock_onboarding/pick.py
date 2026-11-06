@@ -22,30 +22,31 @@ class ModelPick:
 
 
 # Conservative catalog ordered by approximate VRAM need (chat-dominant).
-# Default session criteria prefer EmbeddingGemma + Gemma chat (re-embed expected).
+# Prefer *public* GGUF mirrors so a GitHub try-out works without HF_TOKEN.
+# Official google/* Gemma repos are gated (license click-through + auth).
 _CATALOG: List[Tuple[float, ModelPick]] = [
     (
         20.0,
         ModelPick(
             "ggml-org/embeddinggemma-2-GGUF",
-            "google/gemma-3-12b-it-qat-q4_0-gguf",
+            "bartowski/gemma-3-12b-it-GGUF",
             "Q8_0",
-            "Q4_0",
+            "Q4_K_M",
             4096,
             32768,
-            "High VRAM: EmbeddingGemma 2 + Gemma 3 12B",
+            "High VRAM: EmbeddingGemma 2 + Gemma 3 12B (public mirror)",
         ),
     ),
     (
         10.0,
         ModelPick(
             "ggml-org/embeddinggemma-2-GGUF",
-            "google/gemma-3-4b-it-qat-q4_0-gguf",
+            "bartowski/gemma-3-4b-it-GGUF",
             "Q8_0",
-            "Q4_0",
+            "Q4_K_M",
             2048,
             16384,
-            "Mid VRAM: EmbeddingGemma 2 + Gemma 3 4B",
+            "Mid VRAM: EmbeddingGemma 2 + Gemma 3 4B (public mirror)",
         ),
     ),
     (
@@ -61,6 +62,17 @@ _CATALOG: List[Tuple[float, ModelPick]] = [
         ),
     ),
 ]
+
+# When no HF token, remap gated official Google repos to public GGUF mirrors.
+# Values are (public_repo_id, preferred_quant_or_None_to_keep).
+_GATED_REPO_PUBLIC_FALLBACK: dict = {
+    "google/gemma-3-4b-it-qat-q4_0-gguf": ("bartowski/gemma-3-4b-it-GGUF", "Q4_K_M"),
+    "google/gemma-3-12b-it-qat-q4_0-gguf": ("bartowski/gemma-3-12b-it-GGUF", "Q4_K_M"),
+    "google/gemma-3-27b-it-qat-q4_0-gguf": ("bartowski/gemma-3-27b-it-GGUF", "Q4_K_M"),
+    # Common alternate spellings / non-qat ids still under google/
+    "google/gemma-3-4b-it-GGUF": ("bartowski/gemma-3-4b-it-GGUF", "Q4_K_M"),
+    "google/gemma-3-12b-it-GGUF": ("bartowski/gemma-3-12b-it-GGUF", "Q4_K_M"),
+}
 
 
 def estimate_vram_gb() -> float:
@@ -199,6 +211,75 @@ def _find_gguf(folder: Path, quant: str) -> Optional[Path]:
     return ggufs[0] if ggufs else None
 
 
+def public_repo_fallback(repo_id: str) -> Optional[Tuple[str, Optional[str]]]:
+    """Return ``(public_repo, quant_override)`` for a known gated HF id, else None."""
+    key = (repo_id or "").strip()
+    hit = _GATED_REPO_PUBLIC_FALLBACK.get(key)
+    if hit:
+        return hit
+    # Soft match: google/gemma-3-4b* → bartowski 4b, etc.
+    low = key.lower()
+    if low.startswith("google/gemma-3-4b"):
+        return ("bartowski/gemma-3-4b-it-GGUF", "Q4_K_M")
+    if low.startswith("google/gemma-3-12b"):
+        return ("bartowski/gemma-3-12b-it-GGUF", "Q4_K_M")
+    if low.startswith("google/gemma-3-27b"):
+        return ("bartowski/gemma-3-27b-it-GGUF", "Q4_K_M")
+    return None
+
+
+def prefer_public_pick(pick: ModelPick, *, token: Optional[str] = None) -> ModelPick:
+    """Rewrite a pick to public mirrors when the user has no HF token."""
+    if token:
+        return pick
+    embed_repo, embed_quant = pick.embed_repo, pick.embed_quant
+    chat_repo, chat_quant = pick.chat_repo, pick.chat_quant
+    notes: List[str] = []
+    emb_fb = public_repo_fallback(embed_repo)
+    if emb_fb:
+        embed_repo, q = emb_fb
+        if q:
+            embed_quant = q
+        notes.append(f"embed {pick.embed_repo} → {embed_repo}")
+    chat_fb = public_repo_fallback(chat_repo)
+    if chat_fb:
+        chat_repo, q = chat_fb
+        if q:
+            chat_quant = q
+        notes.append(f"chat {pick.chat_repo} → {chat_repo}")
+    if not notes:
+        return pick
+    note = pick.note
+    suffix = "public mirror (no HF token): " + "; ".join(notes)
+    note = f"{note}; {suffix}" if note else suffix
+    return ModelPick(
+        embed_repo=embed_repo,
+        chat_repo=chat_repo,
+        embed_quant=embed_quant,
+        chat_quant=chat_quant,
+        embed_n_ctx=pick.embed_n_ctx,
+        chat_n_ctx=pick.chat_n_ctx,
+        note=note,
+    )
+
+
+def _is_hf_auth_error(exc: BaseException) -> bool:
+    text = str(exc).lower()
+    return any(
+        s in text
+        for s in (
+            "401",
+            "403",
+            "gated",
+            "restricted",
+            "cannot access gated",
+            "invalid username",
+            "must have access",
+            "be authenticated",
+        )
+    )
+
+
 def download_repo_gguf(
     repo_id: str,
     dest_dir: Path,
@@ -206,6 +287,7 @@ def download_repo_gguf(
     quant: str,
     token: Optional[str] = None,
     cb: ProgressCb = None,
+    allow_public_fallback: bool = True,
 ) -> Path:
     try:
         from huggingface_hub import hf_hub_download, list_repo_files
@@ -219,41 +301,71 @@ def download_repo_gguf(
             cb(f"Using existing {existing.name}")
         return existing
 
-    if cb:
-        cb(f"Listing files for {repo_id} …")
-    files = list_repo_files(repo_id, repo_type="model", token=token)
-    ggufs = [f for f in files if f.lower().endswith(".gguf")]
-    if not ggufs:
-        raise RuntimeError(f"No GGUF files in {repo_id}")
+    def _pull(rid: str, q: str, into: Path) -> Path:
+        into.mkdir(parents=True, exist_ok=True)
+        hit = _find_gguf(into, q)
+        if hit:
+            if cb:
+                cb(f"Using existing {hit.name}")
+            return hit
+        if cb:
+            cb(f"Listing files for {rid} …")
+        files = list_repo_files(rid, repo_type="model", token=token)
+        ggufs = [f for f in files if f.lower().endswith(".gguf")]
+        if not ggufs:
+            raise RuntimeError(f"No GGUF files in {rid}")
 
-    tokens = _quant_tokens(quant)
-    chosen = None
-    for f in ggufs:
-        up = f.upper().replace("-", "_")
-        if any(t.upper().replace("-", "_") in up for t in tokens):
-            chosen = f
-            break
-    if chosen is None:
-        # Prefer smaller quants for unknown
-        for pref in ("Q4_K_M", "Q5_K_M", "Q8_0", "Q4_0"):
-            for f in ggufs:
-                if pref in f.upper().replace("-", "_"):
-                    chosen = f
-                    break
-            if chosen:
+        tokens = _quant_tokens(q)
+        chosen = None
+        for f in ggufs:
+            up = f.upper().replace("-", "_")
+            if any(t.upper().replace("-", "_") in up for t in tokens):
+                chosen = f
                 break
-    if chosen is None:
-        chosen = ggufs[0]
+        if chosen is None:
+            for pref in ("Q4_K_M", "Q5_K_M", "Q8_0", "Q4_0"):
+                for f in ggufs:
+                    if pref in f.upper().replace("-", "_"):
+                        chosen = f
+                        break
+                if chosen:
+                    break
+        if chosen is None:
+            chosen = ggufs[0]
 
-    if cb:
-        cb(f"Downloading {repo_id}/{chosen} …")
-    path = hf_hub_download(
-        repo_id=repo_id,
-        filename=chosen,
-        local_dir=str(dest_dir),
-        token=token,
-    )
-    return Path(path)
+        if cb:
+            cb(f"Downloading {rid}/{chosen} …")
+        path = hf_hub_download(
+            repo_id=rid,
+            filename=chosen,
+            local_dir=str(into),
+            token=token,
+        )
+        return Path(path)
+
+    try:
+        return _pull(repo_id, quant, dest_dir)
+    except Exception as e:
+        fb = public_repo_fallback(repo_id) if allow_public_fallback else None
+        if not fb or token or not _is_hf_auth_error(e):
+            if _is_hf_auth_error(e) and not token:
+                raise RuntimeError(
+                    f"{e}\n\n"
+                    f"Repo {repo_id} requires Hugging Face login (gated model). "
+                    "Spock try-out does not require a token for public GGUFs — "
+                    "pick a bartowski/* or ggml-org/* mirror, or set HF_TOKEN after "
+                    "accepting the model license on huggingface.co."
+                ) from e
+            raise
+        alt_repo, alt_quant = fb
+        use_quant = alt_quant or quant
+        alt_dir = dest_dir.parent / alt_repo.split("/")[-1]
+        if cb:
+            cb(
+                f"{repo_id} is gated without HF_TOKEN — "
+                f"retrying public mirror {alt_repo} ({use_quant})"
+            )
+        return _pull(alt_repo, use_quant, alt_dir)
 
 
 def download_pair(
@@ -263,6 +375,9 @@ def download_pair(
     token: Optional[str] = None,
     cb: ProgressCb = None,
 ) -> Tuple[Path, Path]:
+    pick = prefer_public_pick(pick, token=token)
+    if cb and "public mirror" in (pick.note or ""):
+        cb(f"Model pick adjusted: {pick.note}")
     models = root / "models"
     embed_dir = models / pick.embed_repo.split("/")[-1]
     chat_dir = models / pick.chat_repo.split("/")[-1]

@@ -141,21 +141,34 @@ def cmd_acquire(
     chat_path = ""
     if download_models:
         if not token:
-            reasons.append("NEED_HF_TOKEN")
-            _log(cb, "No HF token found — attempting anonymous download")
+            _log(
+                cb,
+                "No HF token — anonymous download (public GGUFs only; "
+                "gated google/* repos remap to bartowski/* mirrors)",
+            )
         try:
+            from spock_onboarding.pick import prefer_public_pick
+
+            pick = prefer_public_pick(pick, token=token)
+            _log(cb, f"  embed {pick.embed_repo} {pick.embed_quant} -c {pick.embed_n_ctx}")
+            _log(cb, f"  chat  {pick.chat_repo} {pick.chat_quant} -c {pick.chat_n_ctx}")
             embed_p, chat_p = download_pair(root, pick, token=token, cb=cb)
             embed_path = str(embed_p)
             chat_path = str(chat_p)
-            if "NEED_HF_TOKEN" in reasons and embed_path and chat_path:
-                reasons = [r for r in reasons if r != "NEED_HF_TOKEN"]
         except Exception as e:
-            if "NEED_HF_TOKEN" not in reasons:
+            err = str(e)
+            low = err.lower()
+            if any(
+                s in low
+                for s in ("gated", "401", "403", "authenticated", "restricted")
+            ):
+                reasons.append("NEED_HF_TOKEN")
+            else:
                 reasons.append("NEED_MODELS")
             return {
                 "ok": False,
                 "reasons": reasons,
-                "error": str(e),
+                "error": err,
                 "llama_server_path": llama_exe,
                 "pick_note": pick.note,
             }

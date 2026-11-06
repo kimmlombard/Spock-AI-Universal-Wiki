@@ -6,7 +6,7 @@ from typing import List, Tuple
 
 # (id, title) — ids must match bootstrap.ps1 $STEP_ORDER where applicable
 PHASE_A_STEPS: List[Tuple[str, str]] = [
-    ("python", "Python 3.15"),
+    ("python", "Python 3.12"),
     ("install_root", "Resolve install root"),
     ("acquire", "Acquire app source"),
     ("folders", "Create folder tree"),

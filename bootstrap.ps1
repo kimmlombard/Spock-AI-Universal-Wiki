@@ -18,8 +18,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$PY_MAJOR_MINOR = "3.15"
-$WINGET_PY_ID = "Python.Python.3.15"
+$PY_MAJOR_MINOR = "3.12"
+$WINGET_PY_ID = "Python.Python.3.12"
 
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $LOG_FILE = Join-Path $SCRIPT_DIR "bootstrap.log"
@@ -204,15 +204,15 @@ function Find-Python314 {
     $local = $env:LOCALAPPDATA
     $candidates = @(
         # python.org / Store-style installs (common on Windows 10/11)
-        "$local\Python\pythoncore-3.15-64\python.exe",
-        "$local\Python\pythoncore-3.15-32\python.exe",
+        "$local\Python\pythoncore-3.12-64\python.exe",
+        "$local\Python\pythoncore-3.12-32\python.exe",
         "$local\Python\bin\python.exe",
         "$local\Programs\Python\Python314\python.exe",
-        "$local\Programs\Python\Python3.15\python.exe",
+        "$local\Programs\Python\Python3.12\python.exe",
         "C:\Python314\python.exe"
     )
-    # Glob any pythoncore-3.15* tree under Local\Python
-    $coreGlob = Join-Path $local "Python\pythoncore-3.15*\python.exe"
+    # Glob any pythoncore-3.12* tree under Local\Python
+    $coreGlob = Join-Path $local "Python\pythoncore-3.12*\python.exe"
     try {
         Get-Item -Path $coreGlob -ErrorAction SilentlyContinue | ForEach-Object {
             $candidates = @($_.FullName) + $candidates
@@ -222,7 +222,7 @@ function Find-Python314 {
     $pyLauncher = Get-Command "py" -ErrorAction SilentlyContinue
     if ($pyLauncher) {
         try {
-            $path = & py -3.15 -c "import sys; print(sys.executable)" 2>$null
+            $path = & py -3.12 -c "import sys; print(sys.executable)" 2>$null
             if ($path -and (Test-Path -LiteralPath $path.Trim())) {
                 return $path.Trim()
             }
@@ -303,7 +303,7 @@ Invoke-NamedStep -Id "venv" -Title "Create .venv" -Block {
     $venvPy = Join-Path $venvDir "Scripts\python.exe"
     if (Test-Path -LiteralPath $venvPy) {
         # An existing venv can go stale when its base interpreter is moved or
-        # uninstalled (e.g. a Python 3.14 -> 3.15 migration). Running it then
+        # uninstalled (e.g. a Python 3.14 -> 3.12 migration). Running it then
         # fails with "did not find executable at ..." and exit 103. Verify the
         # venv actually works; if not, rebuild it from the base we located.
         $healthy = $false

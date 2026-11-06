@@ -20,6 +20,30 @@ def test_pick_model_pair_vram_tiers():
     assert mid.chat_repo != high.chat_repo or mid.note != high.note
     assert "12b" in high.chat_repo.lower() or "gemma" in high.chat_repo.lower()
     assert high.embed_repo == "ggml-org/embeddinggemma-2-GGUF"
+    # Try-out defaults must be public mirrors (no HF_TOKEN).
+    assert not mid.chat_repo.startswith("google/")
+    assert not high.chat_repo.startswith("google/")
+    assert mid.chat_repo.startswith("bartowski/")
+    assert high.chat_repo.startswith("bartowski/")
+
+
+def test_prefer_public_pick_remaps_gated_google_without_token():
+    from spock_onboarding.pick import ModelPick, prefer_public_pick
+
+    gated = ModelPick(
+        "ggml-org/embeddinggemma-2-GGUF",
+        "google/gemma-3-4b-it-qat-q4_0-gguf",
+        "Q8_0",
+        "Q4_0",
+        2048,
+        16384,
+        "fit shortlist",
+    )
+    out = prefer_public_pick(gated, token=None)
+    assert out.chat_repo == "bartowski/gemma-3-4b-it-GGUF"
+    assert out.chat_quant == "Q4_K_M"
+    kept = prefer_public_pick(gated, token="hf_test")
+    assert kept.chat_repo.startswith("google/")
 
 
 def test_write_and_format_readiness(tmp_path: Path):

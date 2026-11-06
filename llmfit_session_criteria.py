@@ -56,7 +56,7 @@ _DEFAULT_CRITERIA: Dict[str, Any] = {
     "chat": {
         "preferred_families": ["gemma", "gemma4", "gemma3"],
         "fallback_families": ["nemotron", "qwen"],
-        "fallback_model_id": "google/gemma-3-12b-it-qat-q4_0-gguf",
+        "fallback_model_id": "bartowski/gemma-3-12b-it-GGUF",
     },
     "embed": {
         "preferred_families": ["embeddinggemma"],

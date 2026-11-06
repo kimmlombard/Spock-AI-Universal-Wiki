@@ -144,7 +144,13 @@ def _http_json(url: str) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _download_file(url: str, dest: Path, cb: ProgressCb = None) -> None:
+def _download_file(
+    url: str,
+    dest: Path,
+    cb: ProgressCb = None,
+    *,
+    expected_size: Optional[int] = None,
+) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     name = url.split("/")[-1]
     req = Request(url, headers={"User-Agent": "Spock-Onboarding/0.1"})
@@ -159,7 +165,60 @@ def _download_file(url: str, dest: Path, cb: ProgressCb = None) -> None:
             total += len(chunk)
             if total % (25 * 1024 * 1024) < 1024 * 1024:
                 _say(cb, f"  … {name}: {total // (1024 * 1024)} MB")
-    _say(cb, f"Saved {dest.name}")
+    got = dest.stat().st_size if dest.is_file() else 0
+    if expected_size and int(expected_size) > 0 and got != int(expected_size):
+        raise RuntimeError(
+            f"Download size mismatch for {dest.name}: got {got} bytes, "
+            f"expected {int(expected_size)} (incomplete or corrupt transfer)"
+        )
+    _say(cb, f"Saved {dest.name} ({got // (1024 * 1024)} MB)")
+
+
+def _verify_zip(archive: Path) -> None:
+    """Raise if the zip is truncated or has a Bad CRC member."""
+    with zipfile.ZipFile(archive, "r") as zf:
+        bad = zf.testzip()
+        if bad is not None:
+            raise zipfile.BadZipFile(f"Bad CRC-32 for file '{bad}' in {archive.name}")
+
+
+def _download_asset(
+    asset: dict,
+    dest: Path,
+    cb: ProgressCb = None,
+    *,
+    attempts: int = 3,
+) -> Path:
+    """Download a GitHub release asset; verify size and zip CRC; retry on failure."""
+    url = str(asset.get("browser_download_url") or "")
+    if not url:
+        raise RuntimeError(f"Asset missing browser_download_url: {asset.get('name')}")
+    expected = asset.get("size")
+    try:
+        expected_n = int(expected) if expected is not None else None
+    except (TypeError, ValueError):
+        expected_n = None
+    last_err: Optional[BaseException] = None
+    for n in range(1, max(1, attempts) + 1):
+        try:
+            if dest.exists():
+                dest.unlink()
+            _download_file(url, dest, cb, expected_size=expected_n)
+            if dest.name.lower().endswith(".zip"):
+                _say(cb, f"Verifying zip CRC: {dest.name}")
+                _verify_zip(dest)
+            return dest
+        except (OSError, RuntimeError, zipfile.BadZipFile) as e:
+            last_err = e
+            _say(cb, f"Download/verify failed (attempt {n}/{attempts}): {e}")
+            try:
+                if dest.exists():
+                    dest.unlink()
+            except OSError:
+                pass
+    raise RuntimeError(
+        f"Failed to download {asset.get('name')} after {attempts} attempts: {last_err}"
+    )
 
 
 def _asset_name(asset: dict) -> str:
@@ -288,6 +347,7 @@ def _pick_macos_assets(assets: list) -> Optional[dict]:
 
 
 def _extract_zip(archive: Path, dest_dir: Path) -> None:
+    _verify_zip(archive)
     with zipfile.ZipFile(archive, "r") as zf:
         zf.extractall(dest_dir)
 
@@ -410,12 +470,12 @@ def download_llama_server_windows(
     staging.mkdir(parents=True, exist_ok=True)
 
     bin_zip = staging / bin_asset["name"]
-    _download_file(bin_asset["browser_download_url"], bin_zip, cb)
+    _download_asset(bin_asset, bin_zip, cb)
     _extract_zip(bin_zip, dest_dir)
 
     if cudart and cudart.get("name") != bin_asset.get("name"):
         crt_zip = staging / cudart["name"]
-        _download_file(cudart["browser_download_url"], crt_zip, cb)
+        _download_asset(cudart, crt_zip, cb)
         _extract_zip(crt_zip, dest_dir)
 
     exe = detect_llama_server(root, install_dir=str(dest_dir))
@@ -458,12 +518,12 @@ def download_llama_server_linux(
     staging.mkdir(parents=True, exist_ok=True)
 
     bin_tar = staging / bin_asset["name"]
-    _download_file(bin_asset["browser_download_url"], bin_tar, cb)
+    _download_asset(bin_asset, bin_tar, cb)
     _extract_tar_flat(bin_tar, dest_dir)
 
     if cudart and cudart.get("name") != bin_asset.get("name"):
         crt_tar = staging / cudart["name"]
-        _download_file(cudart["browser_download_url"], crt_tar, cb)
+        _download_asset(cudart, crt_tar, cb)
         _extract_tar_flat(crt_tar, dest_dir)
 
     _chmod_llama_server(dest_dir)
@@ -527,7 +587,7 @@ def download_llama_server_macos(
     staging.mkdir(parents=True, exist_ok=True)
 
     bin_archive = staging / bin_asset["name"]
-    _download_file(bin_asset["browser_download_url"], bin_archive, cb)
+    _download_asset(bin_asset, bin_archive, cb)
     _extract_archive(bin_archive, dest_dir)
     _chmod_llama_server(dest_dir)
 
@@ -555,6 +615,31 @@ def download_llama_server(
     return download_llama_server_linux(root, install_dir=install_dir, cb=cb)
 
 
+def _windows_cuda_bundle_incomplete(dest_dir: Path) -> bool:
+    """True when a CUDA build is present but cuBLAS runtime looks broken.
+
+    A failed cudart zip extract leaves ``llama-server.exe`` + ``ggml-cuda.dll``
+    while ``cublasLt64_*.dll`` is missing, tiny, or paired with a still-staged
+    zip that fails CRC verification.
+    """
+    if os.name != "nt":
+        return False
+    if not (dest_dir / "ggml-cuda.dll").is_file():
+        return False
+    staging = dest_dir / "_download"
+    if staging.is_dir():
+        for zpath in staging.glob("cudart*.zip"):
+            try:
+                _verify_zip(zpath)
+            except (OSError, zipfile.BadZipFile):
+                return True
+    candidates = sorted(dest_dir.glob("cublasLt64_*.dll"))
+    if not candidates:
+        return True
+    # Full cublasLt is hundreds of MB; a few MB means a truncated extract.
+    return max(p.stat().st_size for p in candidates) < 50 * 1024 * 1024
+
+
 def ensure_llama_server(
     root: Path,
     *,
@@ -563,14 +648,20 @@ def ensure_llama_server(
     download_if_missing: bool = True,
     cb: ProgressCb = None,
 ) -> str:
-    found = detect_llama_server(root, config_hint=hint, install_dir=install_dir)
-    if found:
+    dest = Path(install_dir) if install_dir else Path(default_llama_install_dir(root))
+    found = detect_llama_server(root, config_hint=hint, install_dir=install_dir or str(dest))
+    if found and not _windows_cuda_bundle_incomplete(Path(found).parent):
         return found
+    if found and _windows_cuda_bundle_incomplete(Path(found).parent):
+        _say(
+            cb,
+            "llama-server.exe is present but CUDA runtime DLLs look incomplete "
+            "(likely a corrupt cudart zip). Re-downloading…",
+        )
     if not download_if_missing:
         raise FileNotFoundError(
             "llama-server not found — set LLAMA_SERVER_PATH or place a native "
             "binary under tools/llama-server/ "
             "(macOS/Linux: llama-server, Windows: llama-server.exe)"
         )
-    dest = Path(install_dir) if install_dir else Path(default_llama_install_dir(root))
     return download_llama_server(root, install_dir=dest, cb=cb)
