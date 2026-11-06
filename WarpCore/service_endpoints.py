@@ -63,12 +63,19 @@ def is_runnable_host_binary(path: Path | str) -> bool:
             mag = fh.read(4)
     except OSError:
         return False
-    # ELF, shebang scripts, or Mach-O (rare in WSL but harmless)
+    # ELF, shebang scripts, or Mach-O / universal (macOS Metal llama-server, llmfit)
     if mag[:4] == b"\x7fELF":
         return True
     if mag[:2] == b"#!":
         return True
-    if mag[:4] in (b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe"):
+    if mag[:4] in (
+        b"\xfe\xed\xfa\xce",  # MH_MAGIC
+        b"\xfe\xed\xfa\xcf",  # MH_MAGIC_64
+        b"\xce\xfa\xed\xfe",  # MH_CIGAM
+        b"\xcf\xfa\xed\xfe",  # MH_CIGAM_64
+        b"\xca\xfe\xba\xbe",  # FAT_MAGIC
+        b"\xbe\xba\xfe\xca",  # FAT_CIGAM
+    ):
         return True
     return False
 

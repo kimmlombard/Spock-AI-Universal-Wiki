@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bootstrap.sh — Spock Phase A/B for Linux / WSL (peer of bootstrap.ps1)
+# bootstrap.sh — Spock Phase A/B for Linux / WSL / macOS (peer of bootstrap.ps1)
 #
 # Usage:
 #   ./bootstrap.sh                  # Phase A: python3 + .venv + requirements-ui.txt
@@ -73,7 +73,11 @@ phase_a() {
   log "Phase A — install root: $INSTALL_ROOT"
   local py
   if ! py="$(find_python)"; then
-    log "Python 3.10+ not found. On Ubuntu: sudo apt install -y python3 python3-venv python3-pip" ERROR
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      log "Python 3.10+ not found. On macOS: brew install python@3.12" ERROR
+    else
+      log "Python 3.10+ not found. On Ubuntu: sudo apt install -y python3 python3-venv python3-pip" ERROR
+    fi
     exit 1
   fi
   log "Base Python: $py ($("$py" -c 'import sys; print(sys.version.split()[0])'))"

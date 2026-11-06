@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Spock Bringup Menu (PyQt6). Peer of Spock-Menu.bat for Linux / WSL.
+# Spock Bringup Menu (PyQt6). Peer of Spock-Menu.bat for Linux / WSL / macOS.
 # If PyQt6 / .venv is missing, runs Phase A (bootstrap.sh) then opens the GUI.
 
 set -uo pipefail
@@ -10,7 +10,10 @@ set -uo pipefail
 export QT_SCALE_FACTOR="${QT_SCALE_FACTOR:-1.0}"
 export QT_FONT_DPI="${QT_FONT_DPI:-96}"
 # WSLg: gio/xdg-open often fails for http:// — prefer Firefox (or set BROWSER=…)
-export BROWSER="${BROWSER:-firefox}"
+# macOS: open(1) / system default; leave BROWSER unset unless overridden.
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  export BROWSER="${BROWSER:-firefox}"
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${SPOCK_INSTALL_ROOT:-$SCRIPT_DIR}"
@@ -32,7 +35,7 @@ pyqt6_ready() {
 launch_gui() {
   c_cyan "Opening Spock Bringup Menu..."
   export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
-  if [[ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+  if [[ "$(uname -s)" != "Darwin" && -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
     c_yellow "No DISPLAY/WAYLAND_DISPLAY — WSLg or an X server is required for the GUI."
     c_yellow "Fallback: ./spock_menu.sh   or   ./Spock-Menu-Console.sh"
   fi

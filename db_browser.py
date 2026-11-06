@@ -882,3 +882,126 @@ class TableBrowser(QWidget):
             main_window.show_home()
         elif hasattr(main_window, "show_home_page"):
             main_window.show_home_page()
+        elif main_window is not None and main_window is not self:
+            # Standalone ``python db_browser.py`` window — Close exits the app.
+            main_window.close()
+
+
+def _default_db_path() -> Path:
+    try:
+        from spock_shell.paths import SHIP_COMPUTER_DB
+
+        return Path(SHIP_COMPUTER_DB)
+    except Exception:
+        return Path(__file__).resolve().parent / "ship_computer.db"
+
+
+def _standalone_main(argv: Optional[List[str]] = None) -> int:
+    """Open a standalone SQLite grid window over ``ship_computer.db``."""
+    import argparse
+    import sys
+
+    from PyQt6.QtWidgets import (
+        QApplication,
+        QComboBox,
+        QHBoxLayout,
+        QLabel,
+        QMainWindow,
+        QMessageBox,
+        QVBoxLayout,
+        QWidget,
+    )
+
+    parser = argparse.ArgumentParser(
+        description="Browse Spock ship_computer.db (standalone TableBrowser)."
+    )
+    parser.add_argument(
+        "db",
+        nargs="?",
+        default=None,
+        help="Path to SQLite DB (default: install-root ship_computer.db)",
+    )
+    parser.add_argument(
+        "--table",
+        default="",
+        help="Initial table (default: documents if present, else first table)",
+    )
+    parser.add_argument(
+        "--theme",
+        default="dark",
+        choices=sorted(THEMES.keys()),
+        help="WarpCore theme name",
+    )
+    args = parser.parse_args(argv)
+
+    db_path = Path(args.db).expanduser() if args.db else _default_db_path()
+    if not db_path.is_file():
+        print(f"Database not found: {db_path}", file=sys.stderr)
+        return 2
+
+    app = QApplication.instance() or QApplication(sys.argv)
+    theme = THEMES.get(args.theme) or THEMES["dark"]
+
+    try:
+        db = DatabaseManager(str(db_path))
+    except Exception as exc:
+        QMessageBox.critical(None, "Spock DB Browser", f"Could not open:\n{db_path}\n\n{exc}")
+        return 1
+
+    tables = db.get_tables()
+    if not tables:
+        QMessageBox.warning(None, "Spock DB Browser", f"No tables in:\n{db_path}")
+        return 1
+
+    preferred = (args.table or "documents").strip()
+    initial = preferred if preferred in tables else tables[0]
+
+    win = QMainWindow()
+    win.setWindowTitle(f"Spock DB Browser — {db_path.name}")
+    win.resize(1100, 720)
+
+    central = QWidget()
+    lay = QVBoxLayout(central)
+    header = QHBoxLayout()
+    header.addWidget(QLabel(f"<b>{db_path}</b>"))
+    header.addStretch(1)
+    table_pick = QComboBox()
+    table_pick.addItems(tables)
+    table_pick.setCurrentText(initial)
+    header.addWidget(QLabel("Table:"))
+    header.addWidget(table_pick)
+    lay.addLayout(header)
+
+    body = QVBoxLayout()
+    body_host = QWidget()
+    body_host.setLayout(body)
+    lay.addWidget(body_host, 1)
+
+    browser_holder: dict = {"widget": None}
+
+    def show_table(name: str) -> None:
+        old = browser_holder["widget"]
+        if old is not None:
+            body.removeWidget(old)
+            old.deleteLater()
+        try:
+            browser = TableBrowser(db, name, theme)
+        except Exception as exc:
+            browser = QLabel(f"Could not open table <b>{name}</b>:<br>{exc}")
+            browser.setWordWrap(True)
+        browser_holder["widget"] = browser
+        body.addWidget(browser)
+        win.setWindowTitle(f"Spock DB Browser — {db_path.name} / {name}")
+
+    table_pick.currentTextChanged.connect(show_table)
+    show_table(initial)
+
+    win.setCentralWidget(central)
+    win.show()
+    code = app.exec()
+    db.close()
+    return int(code) if isinstance(code, int) else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_standalone_main())

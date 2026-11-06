@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# spock_menu.sh — console launcher for Spock on Linux / WSL
+# spock_menu.sh — console launcher for Spock on Linux / WSL / macOS
 # Peer of spock_menu.ps1 (Bringup Menu steps 1–16).
 
 set -uo pipefail
@@ -11,7 +11,9 @@ set -uo pipefail
 export QT_SCALE_FACTOR="${QT_SCALE_FACTOR:-1.0}"
 export QT_FONT_DPI="${QT_FONT_DPI:-96}"
 # WSLg: gio/xdg-open often fails for http:// — prefer Firefox (or set BROWSER=…)
-export BROWSER="${BROWSER:-firefox}"
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  export BROWSER="${BROWSER:-firefox}"
+fi
 
 ROOT=""
 if [[ $# -gt 0 && -n "${1:-}" && "${1:0:1}" != "-" ]]; then
@@ -52,9 +54,17 @@ pyqt6_ready() {
 
 show_header() {
   echo ""
-  c_cyan "=== Spock Onboarding Menu (console / Linux-WSL) ==="
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    c_cyan "=== Spock Onboarding Menu (console / macOS) ==="
+  else
+    c_cyan "=== Spock Onboarding Menu (console / Linux-WSL) ==="
+  fi
   echo "Root: $ROOT"
-  echo "Tip: after Phase A, GUI apps use WSLg when DISPLAY is set."
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "Tip: after Phase A, GUI apps use native Cocoa (./Spock-Menu.sh)."
+  else
+    echo "Tip: after Phase A, GUI apps use WSLg when DISPLAY is set."
+  fi
   local py
   if py="$(venv_python)"; then
     c_green "venv: $py"

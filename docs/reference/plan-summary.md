@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Spock-Onboarding is in active development. Console bring-up, PyQt6 station UIs, RAG, MCP, and wiki indexing are complete on Windows; Linux support is in place. Apple Metal remains planned.
+Spock-Onboarding is in active development. Console bring-up, PyQt6 station UIs, RAG, MCP, and wiki indexing are complete on Windows; Linux support is in place. Apple Metal llama-server Acquire (macOS arm64/x64) is supported.
 
 ## Completed
 

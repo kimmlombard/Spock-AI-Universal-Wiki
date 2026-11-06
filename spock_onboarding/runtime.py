@@ -1,9 +1,10 @@
-"""Detect / download llama-server (Windows + Linux/WSL) — headless."""
+"""Detect / download llama-server (Windows + Linux/WSL + macOS Metal) — headless."""
 
 from __future__ import annotations
 
 import json
 import os
+import platform
 import shutil
 import tarfile
 import zipfile
@@ -11,13 +12,29 @@ from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 from urllib.request import Request, urlopen
 
-LLAMA_RELEASES_API = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
+# llama.cpp marks almost every build as prerelease; /releases/latest often
+# points at an ancient non-prerelease with no current OS assets.
+LLAMA_RELEASES_API = "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=15"
 ProgressCb = Optional[Callable[[str], None]]
 
 
 def _say(cb: ProgressCb, msg: str) -> None:
     if cb:
         cb(msg)
+
+
+def _latest_release_with_assets() -> dict:
+    """Return the newest release that has downloadable assets."""
+    data = _http_json(LLAMA_RELEASES_API)
+    if isinstance(data, dict):
+        # Back-compat if a single-release URL is ever restored.
+        return data
+    if not isinstance(data, list):
+        raise RuntimeError("Unexpected llama.cpp releases API payload.")
+    for release in data:
+        if release.get("assets"):
+            return release
+    raise RuntimeError("No llama.cpp releases with assets found.")
 
 
 def normalize_fs_path(path: str) -> str:
@@ -236,35 +253,106 @@ def _pick_linux_assets(assets: list) -> Tuple[Optional[dict], Optional[dict]]:
     return bin_asset, cudart
 
 
+def _pick_macos_assets(assets: list) -> Optional[dict]:
+    """Pick Metal-capable macOS llama.cpp release (arm64 preferred on Apple Silicon)."""
+    archives = [
+        a
+        for a in assets
+        if a.get("browser_download_url")
+        and (
+            _asset_name(a).endswith(".tar.gz")
+            or _asset_name(a).endswith(".tgz")
+            or _asset_name(a).endswith(".zip")
+        )
+    ]
+
+    def find_llama(*parts: str) -> Optional[dict]:
+        for a in archives:
+            low = _asset_name(a)
+            if "cudart" in low or "xcframework" in low or "kleidiai" in low:
+                continue
+            if not low.startswith("llama-"):
+                continue
+            if all(p in low for p in parts):
+                return a
+        return None
+
+    machine = platform.machine().lower()
+    if machine in ("arm64", "aarch64"):
+        return find_llama("bin-macos-arm64") or find_llama("bin-macos", "arm64")
+    return (
+        find_llama("bin-macos-x64")
+        or find_llama("bin-macos-x86_64")
+        or find_llama("bin-macos", "x64")
+    )
+
+
 def _extract_zip(archive: Path, dest_dir: Path) -> None:
     with zipfile.ZipFile(archive, "r") as zf:
         zf.extractall(dest_dir)
 
 
+def _safe_tar_relpath(member_name: str, *, strip: bool) -> Optional[Path]:
+    """Map a tar member name to a dest-relative path, rejecting traversal."""
+    parts = Path(member_name).parts
+    if not parts:
+        return None
+    if strip:
+        if len(parts) == 1:
+            return None
+        rel = Path(*parts[1:])
+    else:
+        rel = Path(*parts)
+    if rel.is_absolute() or ".." in rel.parts:
+        return None
+    return rel
+
+
 def _extract_tar_flat(archive: Path, dest_dir: Path) -> None:
-    """Extract a release tarball, stripping a single shared top-level folder."""
+    """Extract a release tarball, stripping a single shared top-level folder.
+
+    Preserves relative symlinks (required for macOS ``libfoo.0.dylib`` soname
+    aliases next to ``llama-server``).
+    """
     dest_dir.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive, "r:*") as tf:
         members = [m for m in tf.getmembers() if m.name and m.name != "."]
         tops = {Path(m.name).parts[0] for m in members if Path(m.name).parts}
         strip = len(tops) == 1
-        for member in members:
-            parts = Path(member.name).parts
-            if not parts:
+        # Files first, then symlinks (targets must exist for some tools).
+        ordered = sorted(members, key=lambda m: (m.issym() or m.islnk(), m.name))
+        for member in ordered:
+            rel = _safe_tar_relpath(member.name, strip=strip)
+            if rel is None:
                 continue
-            if strip:
-                if len(parts) == 1:
-                    continue
-                rel = Path(*parts[1:])
-            else:
-                rel = Path(*parts)
             target = dest_dir / rel
             if member.isdir():
                 target.mkdir(parents=True, exist_ok=True)
                 continue
-            if member.issym() or member.islnk():
-                continue
             target.parent.mkdir(parents=True, exist_ok=True)
+            if member.issym():
+                link_target = member.linkname
+                if not link_target or Path(link_target).is_absolute() or ".." in Path(link_target).parts:
+                    continue
+                try:
+                    if target.exists() or target.is_symlink():
+                        target.unlink()
+                except OSError:
+                    pass
+                try:
+                    os.symlink(link_target, target)
+                except OSError:
+                    pass
+                continue
+            if member.islnk():
+                # Hard links: copy from already-extracted peer when possible.
+                link_rel = _safe_tar_relpath(member.linkname, strip=strip)
+                if link_rel is None:
+                    continue
+                src_path = dest_dir / link_rel
+                if src_path.is_file():
+                    shutil.copy2(src_path, target)
+                continue
             src = tf.extractfile(member)
             if src is None:
                 continue
@@ -308,7 +396,7 @@ def download_llama_server_windows(
     dest_dir = _prepare_llama_dest(root, install_dir)
     _say(cb, f"Install folder: {dest_dir}")
     _say(cb, "Fetching latest llama.cpp release metadata…")
-    data = _http_json(LLAMA_RELEASES_API)
+    data = _latest_release_with_assets()
     tag = data.get("tag_name", "?")
     assets = data.get("assets") or []
     bin_asset, cudart = _pick_windows_assets(assets)
@@ -348,10 +436,12 @@ def download_llama_server_linux(
 ) -> str:
     if os.name == "nt":
         raise RuntimeError("download_llama_server_linux requires Linux/WSL.")
+    if sys_platform_is_darwin():
+        raise RuntimeError("download_llama_server_linux does not run on macOS.")
     dest_dir = _prepare_llama_dest(root, install_dir)
     _say(cb, f"Install folder: {dest_dir}")
     _say(cb, "Fetching latest llama.cpp release metadata…")
-    data = _http_json(LLAMA_RELEASES_API)
+    data = _latest_release_with_assets()
     tag = data.get("tag_name", "?")
     assets = data.get("assets") or []
     bin_asset, cudart = _pick_linux_assets(assets)
@@ -376,12 +466,70 @@ def download_llama_server_linux(
         _download_file(cudart["browser_download_url"], crt_tar, cb)
         _extract_tar_flat(crt_tar, dest_dir)
 
+    _chmod_llama_server(dest_dir)
+
+    exe = detect_llama_server(root, install_dir=str(dest_dir))
+    if not exe:
+        raise RuntimeError(
+            f"Downloaded release {tag} but llama-server not found under {dest_dir}"
+        )
+    _write_llama_path_tips(root, dest_dir, exe)
+    _say(cb, f"llama-server ready: {exe}")
+    shutil.rmtree(staging, ignore_errors=True)
+    return exe
+
+
+def sys_platform_is_darwin() -> bool:
+    return platform.system() == "Darwin"
+
+
+def _chmod_llama_server(dest_dir: Path) -> None:
     exe_path = dest_dir / "llama-server"
     if exe_path.is_file():
         try:
             os.chmod(exe_path, exe_path.stat().st_mode | 0o111)
         except OSError:
             pass
+
+
+def _extract_archive(archive: Path, dest_dir: Path) -> None:
+    name = archive.name.lower()
+    if name.endswith(".zip"):
+        _extract_zip(archive, dest_dir)
+        return
+    _extract_tar_flat(archive, dest_dir)
+
+
+def download_llama_server_macos(
+    root: Path,
+    install_dir: Optional[Path] = None,
+    cb: ProgressCb = None,
+) -> str:
+    if not sys_platform_is_darwin():
+        raise RuntimeError("download_llama_server_macos requires macOS.")
+    dest_dir = _prepare_llama_dest(root, install_dir)
+    _say(cb, f"Install folder: {dest_dir}")
+    _say(cb, "Fetching latest llama.cpp release metadata…")
+    data = _latest_release_with_assets()
+    tag = data.get("tag_name", "?")
+    assets = data.get("assets") or []
+    bin_asset = _pick_macos_assets(assets)
+    if not bin_asset:
+        raise RuntimeError(
+            f"No macOS llama-*-bin-macos-*.tar.gz/zip found in release {tag}. "
+            "Place a native Metal llama-server under tools/llama-server/ manually."
+        )
+    _say(cb, f"Release {tag}: binary={bin_asset.get('name')} (Metal)")
+
+    staging = dest_dir / "_download"
+    if staging.exists():
+        shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir(parents=True, exist_ok=True)
+
+    bin_archive = staging / bin_asset["name"]
+    _download_file(bin_asset["browser_download_url"], bin_archive, cb)
+    _extract_archive(bin_archive, dest_dir)
+    _chmod_llama_server(dest_dir)
 
     exe = detect_llama_server(root, install_dir=str(dest_dir))
     if not exe:
@@ -402,6 +550,8 @@ def download_llama_server(
     """Download the host-native llama-server into ``tools/llama-server``."""
     if os.name == "nt":
         return download_llama_server_windows(root, install_dir=install_dir, cb=cb)
+    if sys_platform_is_darwin():
+        return download_llama_server_macos(root, install_dir=install_dir, cb=cb)
     return download_llama_server_linux(root, install_dir=install_dir, cb=cb)
 
 
@@ -419,7 +569,8 @@ def ensure_llama_server(
     if not download_if_missing:
         raise FileNotFoundError(
             "llama-server not found — set LLAMA_SERVER_PATH or place a native "
-            "binary under tools/llama-server/ (Linux: llama-server, Windows: llama-server.exe)"
+            "binary under tools/llama-server/ "
+            "(macOS/Linux: llama-server, Windows: llama-server.exe)"
         )
     dest = Path(install_dir) if install_dir else Path(default_llama_install_dir(root))
     return download_llama_server(root, install_dir=dest, cb=cb)

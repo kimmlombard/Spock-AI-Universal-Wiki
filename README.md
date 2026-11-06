@@ -78,6 +78,11 @@ Linux / WSL peer:
     chmod +x spock_menu.sh bootstrap.sh
     ./spock_menu.sh
 
+Apple Silicon (macOS) peer — see [`Apple-Silicon-Setup-README.md`](Apple-Silicon-Setup-README.md):
+
+    chmod +x spock_menu.sh bootstrap.sh Spock-Menu.sh
+    ./bootstrap.sh --phase-a && ./Spock-Menu.sh
+
 ## Local docs / gallery preview
 
     # Main docs (needs docs deps in .venv)
